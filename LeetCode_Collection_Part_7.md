@@ -1,5 +1,3 @@
-# LeetCode 题目合集 Part 7
-
 ## 181. 超过经理收入的员工 (Easy)
 
 表： `Employee`
@@ -44,6 +42,32 @@ Employee 表:
 解释: Joe 是唯一挣得比经理多的雇员。
 ```
 
+### SQL/Shell 解法补充
+#### 基础解法：员工表自连接
+
+算法思想：员工表自连接，用员工的 `managerId` 匹配经理的 `id`，再比较薪水。
+
+
+```sql
+SELECT e.name AS Employee
+FROM Employee e
+JOIN Employee m ON e.managerId = m.id
+WHERE e.salary > m.salary;
+```
+
+
+#### 资深解法：这是典型“同表两种角色”的自连接；别名 `e/m` 分别代表员工和经理。数据库题按 SQL 提交
+
+算法思想：这是典型“同表两种角色”的自连接；别名 `e/m` 分别代表员工和经理。数据库题按 SQL 提交，Java 侧重点是理解结果集关系。
+
+```sql
+SELECT e.name AS Employee
+FROM Employee AS e
+JOIN Employee AS m
+    ON e.managerId = m.id
+WHERE e.salary > m.salary;
+```
+
 ---
 
 ## 182. 查找重复的电子邮箱 (Easy)
@@ -85,6 +109,31 @@ Person 表:
 | a@b.com |
 +---------+
 解释: a@b.com 出现了两次。
+```
+
+### SQL/Shell 解法补充
+#### 基础解法：按邮箱分组并统计数量
+
+算法思想：按邮箱分组并统计数量，数量大于 1 的邮箱即重复。
+
+
+```sql
+SELECT email AS Email
+FROM Person
+GROUP BY email
+HAVING COUNT(*) > 1;
+```
+
+
+#### 资深解法：`WHERE` 过滤行
+
+算法思想：`WHERE` 过滤行，`HAVING` 过滤分组结果；聚合判断重复值是 SQL 高频模板。
+
+```sql
+SELECT email AS Email
+FROM Person
+GROUP BY email
+HAVING COUNT(id) > 1;
 ```
 
 ---
@@ -150,6 +199,34 @@ Orders table:
 | Henry     |
 | Max       |
 +-----------+
+```
+
+### SQL/Shell 解法补充
+#### 基础解法：左连接订单表
+
+算法思想：左连接订单表，未匹配到订单的客户其订单字段为 `NULL`。
+
+
+```sql
+SELECT c.name AS Customers
+FROM Customers c
+LEFT JOIN Orders o ON c.id = o.customerId
+WHERE o.id IS NULL;
+```
+
+
+#### 资深解法：也可用 `NOT EXISTS`
+
+算法思想：也可用 `NOT EXISTS`，通常语义更直接；左连接版本更适合入门理解“反连接”。
+
+```sql
+SELECT c.name AS Customers
+FROM Customers AS c
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM Orders AS o
+    WHERE o.customerId = c.id
+);
 ```
 
 ---
@@ -221,6 +298,44 @@ Department 表:
 | IT         | Max      | 90000  |
 +------------+----------+--------+
 解释：Max 和 Jim 在 IT 部门的工资都是最高的，Henry 在销售部的工资最高。
+```
+
+### SQL/Shell 解法补充
+#### 基础解法：先按部门求最高薪水
+
+算法思想：先按部门求最高薪水，再连接员工表找出薪水等于最高值的员工。
+
+
+```sql
+SELECT d.name AS Department, e.name AS Employee, e.salary AS Salary
+FROM Employee e
+JOIN Department d ON e.departmentId = d.id
+JOIN (
+    SELECT departmentId, MAX(salary) AS maxSalary
+    FROM Employee
+    GROUP BY departmentId
+) x ON e.departmentId = x.departmentId AND e.salary = x.maxSalary;
+```
+
+
+#### 资深解法：窗口函数可用 `DENSE_RANK() OVER (PARTITION BY departmentId ORDER BY salary DESC)`
+
+算法思想：窗口函数可用 `DENSE_RANK() OVER (PARTITION BY departmentId ORDER BY salary DESC)`，排名为 1 的员工即答案。
+
+```sql
+SELECT Department, Employee, Salary
+FROM (
+    SELECT d.name AS Department,
+           e.name AS Employee,
+           e.salary AS Salary,
+           DENSE_RANK() OVER (
+               PARTITION BY e.departmentId
+               ORDER BY e.salary DESC
+           ) AS rk
+    FROM Employee AS e
+    JOIN Department AS d ON e.departmentId = d.id
+) AS ranked
+WHERE rk = 1;
 ```
 
 ---
@@ -314,6 +429,51 @@ Department  表:
 
 没有姓名、薪资和部门  **完全**  相同的员工。
 
+### SQL/Shell 解法补充
+#### 基础解法：对每个员工统计本部门有多少个不同薪水比它高
+
+算法思想：对每个员工统计本部门有多少个不同薪水比它高，小于 3 则属于前三高。
+
+```sql
+SELECT d.name AS Department, e.name AS Employee, e.salary AS Salary
+FROM Employee AS e
+JOIN Department AS d ON e.departmentId = d.id
+WHERE (
+    SELECT COUNT(DISTINCT e2.salary)
+    FROM Employee AS e2
+    WHERE e2.departmentId = e.departmentId
+      AND e2.salary > e.salary
+) < 3;
+```
+
+
+
+#### 资深解法：窗口函数按部门分区排名
+
+算法思想：窗口函数按部门分区排名，保留 `DENSE_RANK <= 3`。
+
+
+```sql
+SELECT Department, Employee, Salary
+FROM (
+    SELECT d.name AS Department,
+           e.name AS Employee,
+           e.salary AS Salary,
+           DENSE_RANK() OVER (
+               PARTITION BY e.departmentId
+               ORDER BY e.salary DESC
+           ) AS rk
+    FROM Employee e
+    JOIN Department d ON e.departmentId = d.id
+) t
+WHERE rk <= 3;
+```
+
+
+#### 基础语法与算法思想
+
+- `PARTITION BY` 在每个部门内部单独排名；`DENSE_RANK` 能正确处理并列薪水。
+
 ---
 
 ## 186. 反转字符串中的单词 II (Medium)
@@ -332,6 +492,64 @@ Department  表:
 进阶：你能否不分配额外空间，原地完成？
 
 题面补充来源：leetcode.ca，核对日期：2026-05-15。
+
+### Java 解法补充
+
+#### 基础解法：按空格切分后反向拼接
+
+算法思想：按空格切分后反向拼接，再写回字符数组。
+
+```java
+class Solution {
+    public void reverseWords(char[] s) {
+        String[] words = new String(s).split(" ");
+        StringBuilder builder = new StringBuilder();
+        for (int i = words.length - 1; i >= 0; i--) {
+            if (builder.length() > 0) builder.append(' ');
+            builder.append(words[i]);
+        }
+        char[] result = builder.toString().toCharArray();
+        for (int i = 0; i < s.length; i++) {
+            s[i] = result[i];
+        }
+    }
+}
+```
+
+
+
+#### 资深解法：原地先整体反转
+
+算法思想：原地先整体反转，再逐个单词反转，空间 `O(1)`。
+
+
+```java
+class Solution {
+    public void reverseWords(char[] s) {
+        reverse(s, 0, s.length - 1);
+        int start = 0;
+        for (int i = 0; i <= s.length; i++) {
+            if (i == s.length || s[i] == ' ') {
+                reverse(s, start, i - 1);
+                start = i + 1;
+            }
+        }
+    }
+
+    private void reverse(char[] s, int left, int right) {
+        while (left < right) {
+            char tmp = s[left];
+            s[left++] = s[right];
+            s[right--] = tmp;
+        }
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- `char[]` 可原地修改；“整体反转 + 局部反转”能把单词顺序反转且保持单词内部字符正常。
 
 ---
 
@@ -364,6 +582,62 @@ Department  表:
  `0 <= s.length <= 105`
  `s[i]`  `==`  `'A'` 、 `'C'` 、 `'G'`  or  `'T'`
 
+### Java 解法补充
+
+#### 基础解法：枚举所有长度为 10 的子串
+
+算法思想：枚举所有长度为 10 的子串，用集合统计出现次数。
+
+
+```java
+class Solution {
+    public List<String> findRepeatedDnaSequences(String s) {
+        Set<String> seen = new HashSet<>();
+        Set<String> repeated = new HashSet<>();
+        for (int i = 0; i + 10 <= s.length(); i++) {
+            String sub = s.substring(i, i + 10);
+            if (!seen.add(sub)) repeated.add(sub);
+        }
+        return new ArrayList<>(repeated);
+    }
+}
+```
+
+
+#### 资深解法：可把 A/C/G/T 编码成 2 位
+
+算法思想：可把 A/C/G/T 编码成 2 位，滚动维护 20 位整数窗口，降低字符串创建开销。
+
+```java
+class Solution {
+    public java.util.List<String> findRepeatedDnaSequences(String s) {
+        java.util.Set<Integer> seen = new java.util.HashSet<>();
+        java.util.Set<Integer> repeated = new java.util.HashSet<>();
+        java.util.List<String> ans = new java.util.ArrayList<>();
+        int mask = (1 << 20) - 1;
+        int code = 0;
+        for (int i = 0; i < s.length(); i++) {
+            code = ((code << 2) | value(s.charAt(i))) & mask;
+            if (i >= 9 && !seen.add(code) && repeated.add(code)) {
+                ans.add(s.substring(i - 9, i + 1));
+            }
+        }
+        return ans;
+    }
+
+    private int value(char c) {
+        if (c == 'A') return 0;
+        if (c == 'C') return 1;
+        if (c == 'G') return 2;
+        return 3;
+    }
+}
+```
+
+#### 基础语法与算法思想
+
+- `Set.add` 返回是否首次加入；固定长度窗口适合滑动哈希。
+
 ---
 
 ## 188. 买卖股票的最佳时机 IV (Hard)
@@ -395,6 +669,69 @@ Department  表:
  `1 <= k <= 100`
  `1 <= prices.length <= 1000`
  `0 <= prices[i] <= 1000`
+
+### Java 解法补充
+
+#### 基础解法：三维 DP：天数、交易次数、是否持股
+
+算法思想：三维 DP：天数、交易次数、是否持股，表达清楚但空间较大。
+
+```java
+class Solution {
+    public int maxProfit(int k, int[] prices) {
+        int n = prices.length;
+        int[][][] dp = new int[n][k + 1][2];
+        for (int t = 0; t <= k; t++) dp[0][t][1] = -prices[0];
+        for (int i = 1; i < n; i++) {
+            for (int t = 0; t <= k; t++) {
+                dp[i][t][0] = dp[i - 1][t][0];
+                if (t > 0) dp[i][t][0] = Math.max(dp[i][t][0], dp[i - 1][t][1] + prices[i]);
+                dp[i][t][1] = dp[i - 1][t][1];
+                if (t > 0) dp[i][t][1] = Math.max(dp[i][t][1], dp[i - 1][t - 1][0] - prices[i]);
+            }
+        }
+        return dp[n - 1][k][0];
+    }
+}
+```
+
+
+
+#### 资深解法：压缩为 `buy[t]` 和 `sell[t]`；当 `k >= n/2` 时退化为不限交易次数
+
+算法思想：压缩为 `buy[t]` 和 `sell[t]`；当 `k >= n/2` 时退化为不限交易次数。
+
+
+```java
+class Solution {
+    public int maxProfit(int k, int[] prices) {
+        int n = prices.length;
+        if (n == 0 || k == 0) return 0;
+        if (k >= n / 2) {
+            int ans = 0;
+            for (int i = 1; i < n; i++) {
+                if (prices[i] > prices[i - 1]) ans += prices[i] - prices[i - 1];
+            }
+            return ans;
+        }
+        int[] buy = new int[k + 1];
+        int[] sell = new int[k + 1];
+        Arrays.fill(buy, Integer.MIN_VALUE / 2);
+        for (int price : prices) {
+            for (int t = 1; t <= k; t++) {
+                buy[t] = Math.max(buy[t], sell[t - 1] - price);
+                sell[t] = Math.max(sell[t], buy[t] + price);
+            }
+        }
+        return sell[k];
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- `buy[t]` 表示完成不超过 `t` 次交易且持股的最大收益；状态机 DP 是股票题通用模型。
 
 ---
 
@@ -435,6 +772,59 @@ Department  表:
 
 尽可能想出更多的解决方案，至少有  **三种**  不同的方法可以解决这个问题。
 你可以使用空间复杂度为  `O(1)`  的  **原地** 算法解决这个问题吗？
+
+### Java 解法补充
+
+#### 基础解法：使用额外数组
+
+算法思想：使用额外数组，把 `nums[i]` 放到 `(i + k) % n`。
+
+```java
+class Solution {
+    public void rotate(int[] nums, int k) {
+        int n = nums.length;
+        int[] copy = new int[n];
+        for (int i = 0; i < n; i++) {
+            copy[(i + k) % n] = nums[i];
+        }
+        for (int i = 0; i < n; i++) {
+            nums[i] = copy[i];
+        }
+    }
+}
+```
+
+
+
+#### 资深解法：三次反转：整体反转、反转前 `k` 个、反转剩余元素
+
+算法思想：三次反转：整体反转、反转前 `k` 个、反转剩余元素。
+
+
+```java
+class Solution {
+    public void rotate(int[] nums, int k) {
+        int n = nums.length;
+        k %= n;
+        reverse(nums, 0, n - 1);
+        reverse(nums, 0, k - 1);
+        reverse(nums, k, n - 1);
+    }
+
+    private void reverse(int[] nums, int left, int right) {
+        while (left < right) {
+            int tmp = nums[left];
+            nums[left++] = nums[right];
+            nums[right--] = tmp;
+        }
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- `k %= n` 处理轮转超过数组长度；原地反转空间 `O(1)`。
 
 ---
 
@@ -481,6 +871,48 @@ Department  表:
 
  **进阶** : 如果多次调用这个函数，你将如何优化你的算法？
 
+### Java 解法补充
+
+#### 基础解法：循环 32 次
+
+算法思想：循环 32 次，每次取 `n` 的最低位并追加到答案低位。
+
+
+```java
+public class Solution {
+    public int reverseBits(int n) {
+        int ans = 0;
+        for (int i = 0; i < 32; i++) {
+            ans = (ans << 1) | (n & 1);
+            n >>>= 1;
+        }
+        return ans;
+    }
+}
+```
+
+
+#### 资深解法：可用分治掩码交换 16/8/4/2/1 位块；循环版更易掌握
+
+算法思想：可用分治掩码交换 16/8/4/2/1 位块；循环版更易掌握。
+
+```java
+public class Solution {
+    public int reverseBits(int n) {
+        n = (n >>> 16) | (n << 16);
+        n = ((n & 0xff00ff00) >>> 8) | ((n & 0x00ff00ff) << 8);
+        n = ((n & 0xf0f0f0f0) >>> 4) | ((n & 0x0f0f0f0f) << 4);
+        n = ((n & 0xcccccccc) >>> 2) | ((n & 0x33333333) << 2);
+        n = ((n & 0xaaaaaaaa) >>> 1) | ((n & 0x55555555) << 1);
+        return n;
+    }
+}
+```
+
+#### 基础语法与算法思想
+
+- `>>>` 是无符号右移，适合处理二进制位而不受符号位影响。
+
 ---
 
 ## 191. 位1的个数 (Easy)
@@ -521,6 +953,50 @@ Department  表:
 
 如果多次调用这个函数，你将如何优化你的算法？
 
+### Java 解法补充
+
+#### 基础解法：循环 32 次检查最低位是否为 1
+
+算法思想：循环 32 次检查最低位是否为 1。
+
+```java
+class Solution {
+    public int hammingWeight(int n) {
+        int ans = 0;
+        for (int i = 0; i < 32; i++) {
+            ans += n & 1;
+            n >>>= 1;
+        }
+        return ans;
+    }
+}
+```
+
+
+
+#### 资深解法：每次执行 `n &= n - 1` 都会删除最低位的 1
+
+算法思想：每次执行 `n &= n - 1` 都会删除最低位的 1，循环次数等于 1 的个数。
+
+
+```java
+class Solution {
+    public int hammingWeight(int n) {
+        int ans = 0;
+        while (n != 0) {
+            n &= n - 1;
+            ans++;
+        }
+        return ans;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- Java `int` 是有符号的，但位运算按二进制补码执行；该技巧对负数同样有效。
+
 ---
 
 ## 192. 统计词频 (Medium)
@@ -554,6 +1030,26 @@ day 1
 不要担心词频相同的单词的排序问题，每个单词出现的频率都是唯一的。
 你可以使用一行 Unix pipes 实现吗？
 
+### SQL/Shell 解法补充
+#### 基础解法：将空白转换为换行
+
+算法思想：将空白转换为换行，排序后统计重复行，再按次数降序。
+
+
+```bash
+tr -s ' ' '\n' < words.txt | sort | uniq -c | sort -nr | awk '{print $2, $1}'
+```
+
+
+#### 资深解法：这是 Shell 题
+
+算法思想：这是 Shell 题，不用 Java 提交；管道把“分词、排序、计数、重排输出”拆成一串小工具。
+
+```bash
+awk '{for (i = 1; i <= NF; i++) count[$i]++}
+END {for (word in count) print word, count[word]}' words.txt | sort -k2,2nr
+```
+
 ---
 
 ## 193. 有效电话号码 (Easy)
@@ -578,6 +1074,25 @@ day 1
 (123) 456-7890
 ```
 
+### SQL/Shell 解法补充
+#### 基础解法：用正则匹配两种合法格式：`xxx-xxx-xxxx` 和 `(xxx) xxx-xxxx`
+
+算法思想：用正则匹配两种合法格式：`xxx-xxx-xxxx` 和 `(xxx) xxx-xxxx`。
+
+
+```bash
+grep -E '^([0-9]{3}-|\([0-9]{3}\) )[0-9]{3}-[0-9]{4}$' file.txt
+```
+
+
+#### 资深解法：`^` 与 `$` 保证整行匹配；括号在扩展正则中要转义
+
+算法思想：`^` 与 `$` 保证整行匹配；括号在扩展正则中要转义。
+
+```bash
+grep -E '^([0-9]{3}-[0-9]{3}-[0-9]{4}|\([0-9]{3}\) [0-9]{3}-[0-9]{4})$' file.txt
+```
+
 ---
 
 ## 194. 转置文件 (Medium)
@@ -599,6 +1114,45 @@ ryan 30
 ```text
 name alice ryan
 age 21 30
+```
+
+### SQL/Shell 解法补充
+#### 基础解法：用 `awk` 按行读取字段
+
+算法思想：用 `awk` 按行读取字段，把同一列的内容累加到同一个输出行。
+
+
+```bash
+awk '{
+    for (i = 1; i <= NF; i++) {
+        a[i] = a[i] (NR == 1 ? "" : " ") $i
+    }
+}
+END {
+    for (i = 1; i <= NF; i++) print a[i]
+}' file.txt
+```
+
+
+#### 资深解法：`NR` 是当前行号
+
+算法思想：`NR` 是当前行号，`NF` 是当前行字段数；转置的本质是把第 `i` 列聚合成第 `i` 行。
+
+```bash
+awk '{
+    for (i = 1; i <= NF; i++) {
+        data[i, NR] = $i
+    }
+    rows = NR
+    cols = NF
+}
+END {
+    for (i = 1; i <= cols; i++) {
+        line = data[i, 1]
+        for (j = 2; j <= rows; j++) line = line " " data[i, j]
+        print line
+    }
+}' file.txt
 ```
 
 ---
@@ -631,6 +1185,25 @@ Line 10
  **说明:**
 1. 如果文件少于十行，你应当输出什么？
 2. 至少有三种不同的解法，请尝试尽可能多的方法来解题。
+
+### SQL/Shell 解法补充
+#### 基础解法：用 `awk` 输出行号为 10 的行
+
+算法思想：用 `awk` 输出行号为 10 的行。
+
+
+```bash
+awk 'NR == 10' file.txt
+```
+
+
+#### 资深解法：也可用 `sed -n '10p' file.txt`；Shell 题的重点是熟悉文本流按行处理
+
+算法思想：也可用 `sed -n '10p' file.txt`；Shell 题的重点是熟悉文本流按行处理。
+
+```bash
+sed -n '10p' file.txt
+```
 
 ---
 
@@ -676,6 +1249,36 @@ Person 表:
 | 2  | bob@example.com  |
 +----+------------------+
 解释: john@example.com重复两次。我们保留最小的Id = 1。
+```
+
+### SQL/Shell 解法补充
+#### 基础解法：自连接删除邮箱相同且 `id` 更大的记录
+
+算法思想：自连接删除邮箱相同且 `id` 更大的记录，保留最小 `id`。
+
+
+```sql
+DELETE p1
+FROM Person p1
+JOIN Person p2
+  ON p1.email = p2.email AND p1.id > p2.id;
+```
+
+
+#### 资深解法：删除题要先明确保留规则；这里用 `p1.id > p2.id` 精确表示“删掉重复组中较晚的记录”
+
+算法思想：删除题要先明确保留规则；这里用 `p1.id > p2.id` 精确表示“删掉重复组中较晚的记录”。
+
+```sql
+DELETE FROM Person
+WHERE id NOT IN (
+    SELECT keep_id
+    FROM (
+        SELECT MIN(id) AS keep_id
+        FROM Person
+        GROUP BY email
+    ) AS kept
+);
 ```
 
 ---
@@ -727,6 +1330,33 @@ Weather 表：
 2015-01-04 的温度比前一天高（20 -> 30）
 ```
 
+### SQL/Shell 解法补充
+#### 基础解法：自连接相邻日期记录
+
+算法思想：自连接相邻日期记录，找今天温度高于昨天的 `id`。
+
+
+```sql
+SELECT w1.id
+FROM Weather w1
+JOIN Weather w2
+  ON DATEDIFF(w1.recordDate, w2.recordDate) = 1
+WHERE w1.temperature > w2.temperature;
+```
+
+
+#### 资深解法：支持日期加减的数据库也可写成 `w1.recordDate = DATE_ADD(w2.recordDate, INTERVAL 1 DAY)`
+
+算法思想：支持日期加减的数据库也可写成 `w1.recordDate = DATE_ADD(w2.recordDate, INTERVAL 1 DAY)`。
+
+```sql
+SELECT today.id
+FROM Weather AS today
+JOIN Weather AS yesterday
+    ON today.recordDate = DATE_ADD(yesterday.recordDate, INTERVAL 1 DAY)
+WHERE today.temperature > yesterday.temperature;
+```
+
 ---
 
 ## 198. 打家劫舍 (Medium)
@@ -757,6 +1387,52 @@ Weather 表：
 
  `1 <= nums.length <= 100`
  `0 <= nums[i] <= 400`
+
+### Java 解法补充
+
+#### 基础解法：`dp[i]` 表示前 `i` 间房能抢到的最大金额
+
+算法思想：`dp[i]` 表示前 `i` 间房能抢到的最大金额，转移为抢当前或不抢当前。
+
+```java
+class Solution {
+    public int rob(int[] nums) {
+        int n = nums.length;
+        int[] dp = new int[n + 1];
+        dp[1] = nums[0];
+        for (int i = 2; i <= n; i++) {
+            dp[i] = Math.max(dp[i - 1], dp[i - 2] + nums[i - 1]);
+        }
+        return dp[n];
+    }
+}
+```
+
+
+
+#### 资深解法：只依赖前两个状态
+
+算法思想：只依赖前两个状态，用两个变量压缩空间。
+
+
+```java
+class Solution {
+    public int rob(int[] nums) {
+        int prev2 = 0, prev1 = 0;
+        for (int x : nums) {
+            int cur = Math.max(prev1, prev2 + x);
+            prev2 = prev1;
+            prev1 = cur;
+        }
+        return prev1;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 相邻房屋不能同时选择，所以每一步只比较“不抢当前”和“抢当前加前前状态”。
 
 ---
 
@@ -791,6 +1467,60 @@ Weather 表：
 
 二叉树的节点个数的范围是  `[0,100]`
  `-100 <= Node.val <= 100`
+
+### Java 解法补充
+
+#### 基础解法：BFS 层序遍历
+
+算法思想：BFS 层序遍历，每层最后一个节点进入答案。
+
+
+```java
+class Solution {
+    public List<Integer> rightSideView(TreeNode root) {
+        List<Integer> ans = new ArrayList<>();
+        if (root == null) return ans;
+        Queue<TreeNode> queue = new ArrayDeque<>();
+        queue.offer(root);
+        while (!queue.isEmpty()) {
+            int size = queue.size();
+            for (int i = 0; i < size; i++) {
+                TreeNode node = queue.poll();
+                if (i == size - 1) ans.add(node.val);
+                if (node.left != null) queue.offer(node.left);
+                if (node.right != null) queue.offer(node.right);
+            }
+        }
+        return ans;
+    }
+}
+```
+
+
+#### 资深解法：DFS 先访问右子树
+
+算法思想：DFS 先访问右子树，当深度首次出现时记录该节点。
+
+```java
+class Solution {
+    public java.util.List<Integer> rightSideView(TreeNode root) {
+        java.util.List<Integer> ans = new java.util.ArrayList<>();
+        dfs(root, 0, ans);
+        return ans;
+    }
+
+    private void dfs(TreeNode node, int depth, java.util.List<Integer> ans) {
+        if (node == null) return;
+        if (depth == ans.size()) ans.add(node.val);
+        dfs(node.right, depth + 1, ans);
+        dfs(node.left, depth + 1, ans);
+    }
+}
+```
+
+#### 基础语法与算法思想
+
+- `Queue.offer/poll` 完成层序遍历；右视图就是每一层最右侧节点。
 
 ---
 
@@ -832,6 +1562,105 @@ Weather 表：
  `1 <= m, n <= 300`
  `grid[i][j]`  的值为  `'0'`  或  `'1'`
 
+### Java 解法补充
+
+#### 基础解法：遍历网格
+
+算法思想：遍历网格，遇到陆地就 DFS/BFS 把整座岛标记为水，岛屿数加一。
+
+
+```java
+class Solution {
+    public int numIslands(char[][] grid) {
+        int m = grid.length, n = grid[0].length, ans = 0;
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j < n; j++) {
+                if (grid[i][j] == '1') {
+                    ans++;
+                    dfs(grid, i, j);
+                }
+            }
+        }
+        return ans;
+    }
+
+    private void dfs(char[][] grid, int i, int j) {
+        if (i < 0 || i == grid.length || j < 0 || j == grid[0].length || grid[i][j] != '1') {
+            return;
+        }
+        grid[i][j] = '0';
+        dfs(grid, i + 1, j);
+        dfs(grid, i - 1, j);
+        dfs(grid, i, j + 1);
+        dfs(grid, i, j - 1);
+    }
+}
+```
+
+
+#### 资深解法：并查集也可把相邻陆地合并
+
+算法思想：并查集也可把相邻陆地合并，适合扩展到动态图；静态网格 DFS 最直接。
+
+```java
+class Solution {
+    public int numIslands(char[][] grid) {
+        int m = grid.length, n = grid[0].length;
+        UnionFind uf = new UnionFind(grid);
+        int[][] dirs = {{1, 0}, {0, 1}};
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j < n; j++) {
+                if (grid[i][j] != '1') continue;
+                for (int[] d : dirs) {
+                    int r = i + d[0], c = j + d[1];
+                    if (r < m && c < n && grid[r][c] == '1') {
+                        uf.union(i * n + j, r * n + c);
+                    }
+                }
+            }
+        }
+        return uf.count;
+    }
+
+    private static class UnionFind {
+        int[] parent;
+        int count;
+
+        UnionFind(char[][] grid) {
+            int m = grid.length, n = grid[0].length;
+            parent = new int[m * n];
+            java.util.Arrays.fill(parent, -1);
+            for (int i = 0; i < m; i++) {
+                for (int j = 0; j < n; j++) {
+                    if (grid[i][j] == '1') {
+                        parent[i * n + j] = i * n + j;
+                        count++;
+                    }
+                }
+            }
+        }
+
+        int find(int x) {
+            if (parent[x] != x) parent[x] = find(parent[x]);
+            return parent[x];
+        }
+
+        void union(int a, int b) {
+            int pa = find(a), pb = find(b);
+            if (pa != pb) {
+                parent[pa] = pb;
+                count--;
+            }
+        }
+    }
+}
+```
+
+#### 基础语法与算法思想
+
+- 原地改写 `grid` 作为访问标记；这是连通块计数模板。
+- # Java 解法补充附录（201-210）
+
 ---
 
 ## 201. 数字范围按位与 (Medium)
@@ -863,6 +1692,50 @@ Weather 表：
  **提示：**
 
  `0 <= left <= right <= 231 - 1`
+
+### Java 解法补充
+
+#### 基础解法：从 `left` 到 `right` 逐个做按位与
+
+算法思想：从 `left` 到 `right` 逐个做按位与，区间很大时会超时。
+
+```java
+class Solution {
+    public int rangeBitwiseAnd(int left, int right) {
+        int ans = left;
+        for (int x = left + 1; x <= right && ans != 0; x++) {
+            ans &= x;
+        }
+        return ans;
+    }
+}
+```
+
+
+
+#### 资深解法：不断右移两端点
+
+算法思想：不断右移两端点，直到它们相等，保留公共二进制前缀。
+
+
+```java
+class Solution {
+    public int rangeBitwiseAnd(int left, int right) {
+        int shift = 0;
+        while (left < right) {
+            left >>= 1;
+            right >>= 1;
+            shift++;
+        }
+        return left << shift;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- `>>` 和 `<<` 移动二进制位；连续区间按位与只会留下所有数共同的高位前缀。
 
 ---
 
@@ -901,6 +1774,69 @@ Weather 表：
 
  `1 <= n <= 231 - 1`
 
+### Java 解法补充
+
+#### 基础解法：用 `HashSet` 记录出现过的数字
+
+算法思想：用 `HashSet` 记录出现过的数字，循环则不是快乐数，到 1 则是。
+
+```java
+class Solution {
+    public boolean isHappy(int n) {
+        java.util.Set<Integer> seen = new java.util.HashSet<>();
+        while (n != 1 && seen.add(n)) {
+            n = next(n);
+        }
+        return n == 1;
+    }
+
+    private int next(int n) {
+        int sum = 0;
+        while (n > 0) {
+            int d = n % 10;
+            sum += d * d;
+            n /= 10;
+        }
+        return sum;
+    }
+}
+```
+
+
+
+#### 资深解法：快慢指针检测数值变换链是否成环
+
+算法思想：快慢指针检测数值变换链是否成环，空间 `O(1)`。
+
+
+```java
+class Solution {
+    public boolean isHappy(int n) {
+        int slow = n, fast = next(n);
+        while (fast != 1 && slow != fast) {
+            slow = next(slow);
+            fast = next(next(fast));
+        }
+        return fast == 1;
+    }
+
+    private int next(int n) {
+        int sum = 0;
+        while (n > 0) {
+            int d = n % 10;
+            sum += d * d;
+            n /= 10;
+        }
+        return sum;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- `%` 和 `/` 拆数字位；重复状态意味着进入循环。
+
 ---
 
 ## 203. 移除链表元素 (Easy)
@@ -935,6 +1871,54 @@ Weather 表：
  `1 <= Node.val <= 50`
  `0 <= val <= 50`
 
+### Java 解法补充
+
+#### 基础解法：先处理所有头节点等于 `val` 的情况
+
+算法思想：先处理所有头节点等于 `val` 的情况，再遍历删除后续节点。
+
+```java
+class Solution {
+    public ListNode removeElements(ListNode head, int val) {
+        while (head != null && head.val == val) {
+            head = head.next;
+        }
+        ListNode cur = head;
+        while (cur != null && cur.next != null) {
+            if (cur.next.val == val) cur.next = cur.next.next;
+            else cur = cur.next;
+        }
+        return head;
+    }
+}
+```
+
+
+
+#### 资深解法：虚拟头结点统一头删和中间删除
+
+算法思想：虚拟头结点统一头删和中间删除。
+
+
+```java
+class Solution {
+    public ListNode removeElements(ListNode head, int val) {
+        ListNode dummy = new ListNode(0, head);
+        ListNode cur = dummy;
+        while (cur.next != null) {
+            if (cur.next.val == val) cur.next = cur.next.next;
+            else cur = cur.next;
+        }
+        return dummy.next;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 删除节点时不移动 `cur`，因为新接上的节点仍需检查。
+
 ---
 
 ## 204. 计数质数 (Medium)
@@ -967,6 +1951,61 @@ Weather 表：
  **提示：**
 
  `0 <= n <= 5 * 106`
+
+### Java 解法补充
+
+#### 基础解法：对每个数试除到平方根
+
+算法思想：对每个数试除到平方根，整体约 `O(n sqrt n)`。
+
+```java
+class Solution {
+    public int countPrimes(int n) {
+        int ans = 0;
+        for (int x = 2; x < n; x++) {
+            if (isPrime(x)) ans++;
+        }
+        return ans;
+    }
+
+    private boolean isPrime(int x) {
+        for (int d = 2; d * d <= x; d++) {
+            if (x % d == 0) return false;
+        }
+        return true;
+    }
+}
+```
+
+
+
+#### 资深解法：埃氏筛
+
+算法思想：埃氏筛，从每个质数的平方开始标记倍数。
+
+
+```java
+class Solution {
+    public int countPrimes(int n) {
+        boolean[] composite = new boolean[n];
+        int ans = 0;
+        for (int i = 2; i < n; i++) {
+            if (!composite[i]) {
+                ans++;
+                if ((long) i * i < n) {
+                    for (int j = i * i; j < n; j += i) composite[j] = true;
+                }
+            }
+        }
+        return ans;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- `long` 防止 `i * i` 溢出；质数筛用已知质数排除合数。
 
 ---
 
@@ -1005,6 +2044,55 @@ Weather 表：
  `t.length == s.length`
  `s`  和  `t`  由任意有效的 ASCII 字符组成
 
+### Java 解法补充
+
+#### 基础解法：双向哈希表维护 `s -> t` 与 `t -> s` 的一致映射
+
+算法思想：双向哈希表维护 `s -> t` 与 `t -> s` 的一致映射。
+
+```java
+class Solution {
+    public boolean isIsomorphic(String s, String t) {
+        java.util.Map<Character, Character> st = new java.util.HashMap<>();
+        java.util.Map<Character, Character> ts = new java.util.HashMap<>();
+        for (int i = 0; i < s.length(); i++) {
+            char a = s.charAt(i), b = t.charAt(i);
+            if (st.containsKey(a) && st.get(a) != b) return false;
+            if (ts.containsKey(b) && ts.get(b) != a) return false;
+            st.put(a, b);
+            ts.put(b, a);
+        }
+        return true;
+    }
+}
+```
+
+
+
+#### 资深解法：用两个长度 256 的数组记录字符上次出现位置
+
+算法思想：用两个长度 256 的数组记录字符上次出现位置，位置不同则映射不一致。
+
+
+```java
+class Solution {
+    public boolean isIsomorphic(String s, String t) {
+        int[] a = new int[256], b = new int[256];
+        for (int i = 0; i < s.length(); i++) {
+            char x = s.charAt(i), y = t.charAt(i);
+            if (a[x] != b[y]) return false;
+            a[x] = b[y] = i + 1;
+        }
+        return true;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 用 `i + 1` 区分“未出现”的 0；同构要求双射。
+
 ---
 
 ## 206. 反转链表 (Easy)
@@ -1042,6 +2130,56 @@ Weather 表：
 
  **进阶：** 链表可以选用迭代或递归方式完成反转。你能否用两种方法解决这道题？
 
+### Java 解法补充
+
+#### 基础解法：把节点值放入数组反向写回
+
+算法思想：把节点值放入数组反向写回，改变值不改变节点。
+
+```java
+class Solution {
+    public ListNode reverseList(ListNode head) {
+        java.util.List<Integer> values = new java.util.ArrayList<>();
+        for (ListNode cur = head; cur != null; cur = cur.next) {
+            values.add(cur.val);
+        }
+        ListNode cur = head;
+        for (int i = values.size() - 1; i >= 0; i--) {
+            cur.val = values.get(i);
+            cur = cur.next;
+        }
+        return head;
+    }
+}
+```
+
+
+
+#### 资深解法：三指针原地反转 `next` 指向
+
+算法思想：三指针原地反转 `next` 指向。
+
+
+```java
+class Solution {
+    public ListNode reverseList(ListNode head) {
+        ListNode prev = null, cur = head;
+        while (cur != null) {
+            ListNode next = cur.next;
+            cur.next = prev;
+            prev = cur;
+            cur = next;
+        }
+        return prev;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 改指针前保存 `next`；链表反转模板会反复出现。
+
 ---
 
 ## 207. 课程表 (Medium)
@@ -1077,6 +2215,74 @@ Weather 表：
  `prerequisites[i].length == 2`
  `0 <= ai, bi < numCourses`
  `prerequisites[i]`  中的所有课程对  **互不相同**
+
+### Java 解法补充
+
+#### 基础解法：DFS 三色标记检测有向图是否存在环
+
+算法思想：DFS 三色标记检测有向图是否存在环。
+
+```java
+class Solution {
+    public boolean canFinish(int numCourses, int[][] prerequisites) {
+        java.util.List<Integer>[] graph = new java.util.ArrayList[numCourses];
+        for (int i = 0; i < numCourses; i++) graph[i] = new java.util.ArrayList<>();
+        for (int[] p : prerequisites) graph[p[1]].add(p[0]);
+        int[] color = new int[numCourses];
+        for (int i = 0; i < numCourses; i++) {
+            if (color[i] == 0 && hasCycle(i, graph, color)) return false;
+        }
+        return true;
+    }
+
+    private boolean hasCycle(int cur, java.util.List<Integer>[] graph, int[] color) {
+        color[cur] = 1;
+        for (int next : graph[cur]) {
+            if (color[next] == 1) return true;
+            if (color[next] == 0 && hasCycle(next, graph, color)) return true;
+        }
+        color[cur] = 2;
+        return false;
+    }
+}
+```
+
+
+
+#### 资深解法：拓扑排序统计入度
+
+算法思想：拓扑排序统计入度，能修完所有课程说明无环。
+
+
+```java
+class Solution {
+    public boolean canFinish(int numCourses, int[][] prerequisites) {
+        List<Integer>[] graph = new ArrayList[numCourses];
+        for (int i = 0; i < numCourses; i++) graph[i] = new ArrayList<>();
+        int[] indegree = new int[numCourses];
+        for (int[] p : prerequisites) {
+            graph[p[1]].add(p[0]);
+            indegree[p[0]]++;
+        }
+        Queue<Integer> queue = new ArrayDeque<>();
+        for (int i = 0; i < numCourses; i++) if (indegree[i] == 0) queue.offer(i);
+        int seen = 0;
+        while (!queue.isEmpty()) {
+            int cur = queue.poll();
+            seen++;
+            for (int next : graph[cur]) {
+                if (--indegree[next] == 0) queue.offer(next);
+            }
+        }
+        return seen == numCourses;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 邻接表表达先修依赖；入度为 0 的课程可先学习。
 
 ---
 
@@ -1116,6 +2322,84 @@ trie.search("app");     // 返回 True
  `1 <= word.length, prefix.length <= 2000`
  `word`  和  `prefix`  仅由小写英文字母组成
  `insert` 、 `search`  和  `startsWith`  调用次数  **总计**  不超过  `3 * 104`  次
+
+### Java 解法补充
+
+#### 基础解法：用 `HashSet` 保存所有单词
+
+算法思想：用 `HashSet` 保存所有单词，前缀查询时遍历所有单词判断。
+
+```java
+class Trie {
+    private java.util.Set<String> words = new java.util.HashSet<>();
+
+    public void insert(String word) {
+        words.add(word);
+    }
+
+    public boolean search(String word) {
+        return words.contains(word);
+    }
+
+    public boolean startsWith(String prefix) {
+        for (String word : words) {
+            if (word.startsWith(prefix)) return true;
+        }
+        return false;
+    }
+}
+```
+
+
+
+#### 资深解法：Trie 每个节点保存 26 个子节点和单词结束标记
+
+算法思想：Trie 每个节点保存 26 个子节点和单词结束标记。
+
+
+```java
+class Trie {
+    private static class Node {
+        Node[] next = new Node[26];
+        boolean word;
+    }
+
+    private Node root = new Node();
+
+    public void insert(String word) {
+        Node cur = root;
+        for (char c : word.toCharArray()) {
+            int i = c - 'a';
+            if (cur.next[i] == null) cur.next[i] = new Node();
+            cur = cur.next[i];
+        }
+        cur.word = true;
+    }
+
+    public boolean search(String word) {
+        Node node = find(word);
+        return node != null && node.word;
+    }
+
+    public boolean startsWith(String prefix) {
+        return find(prefix) != null;
+    }
+
+    private Node find(String s) {
+        Node cur = root;
+        for (char c : s.toCharArray()) {
+            cur = cur.next[c - 'a'];
+            if (cur == null) return null;
+        }
+        return cur;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- `Node[] next` 是固定字母表的分支表；Trie 用路径共享压缩公共前缀。
 
 ---
 
@@ -1157,6 +2441,59 @@ trie.search("app");     // 返回 True
  **进阶：**
 
 如果你已经实现  `O(n)`  时间复杂度的解法, 请尝试设计一个  `O(n log(n))`  时间复杂度的解法。
+
+### Java 解法补充
+
+#### 基础解法：枚举左端点并向右累加
+
+算法思想：枚举左端点并向右累加，时间 `O(n^2)`。
+
+```java
+class Solution {
+    public int minSubArrayLen(int target, int[] nums) {
+        int ans = Integer.MAX_VALUE;
+        for (int left = 0; left < nums.length; left++) {
+            int sum = 0;
+            for (int right = left; right < nums.length; right++) {
+                sum += nums[right];
+                if (sum >= target) {
+                    ans = Math.min(ans, right - left + 1);
+                    break;
+                }
+            }
+        }
+        return ans == Integer.MAX_VALUE ? 0 : ans;
+    }
+}
+```
+
+
+
+#### 资深解法：正整数数组可用滑动窗口
+
+算法思想：正整数数组可用滑动窗口，和达到目标后尽量收缩左端点。
+
+
+```java
+class Solution {
+    public int minSubArrayLen(int target, int[] nums) {
+        int left = 0, sum = 0, ans = Integer.MAX_VALUE;
+        for (int right = 0; right < nums.length; right++) {
+            sum += nums[right];
+            while (sum >= target) {
+                ans = Math.min(ans, right - left + 1);
+                sum -= nums[left++];
+            }
+        }
+        return ans == Integer.MAX_VALUE ? 0 : ans;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 数组元素全为正数，窗口扩大和变大、收缩和变小，因此双指针成立。
 
 ---
 
@@ -1202,661 +2539,51 @@ trie.search("app");     // 返回 True
  `ai != bi`
 所有 `[ai, bi]`   **互不相同**
 
----
+### Java 解法补充
 
-# SQL/Shell/Java 解法补充附录（181-200）
+#### 基础解法：DFS 后序加入课程
 
-### 181. 超过经理收入的员工
-
-**基础解法：** 员工表自连接，用员工的 `managerId` 匹配经理的 `id`，再比较薪水。
-
-```sql
-SELECT e.name AS Employee
-FROM Employee e
-JOIN Employee m ON e.managerId = m.id
-WHERE e.salary > m.salary;
-```
-
-**资深解法：** 这是典型“同表两种角色”的自连接；别名 `e/m` 分别代表员工和经理。数据库题按 SQL 提交，Java 侧重点是理解结果集关系。
-
-### 182. 查找重复的电子邮箱
-
-**基础解法：** 按邮箱分组并统计数量，数量大于 1 的邮箱即重复。
-
-```sql
-SELECT email AS Email
-FROM Person
-GROUP BY email
-HAVING COUNT(*) > 1;
-```
-
-**资深解法：** `WHERE` 过滤行，`HAVING` 过滤分组结果；聚合判断重复值是 SQL 高频模板。
-
-### 183. 从不订购的客户
-
-**基础解法：** 左连接订单表，未匹配到订单的客户其订单字段为 `NULL`。
-
-```sql
-SELECT c.name AS Customers
-FROM Customers c
-LEFT JOIN Orders o ON c.id = o.customerId
-WHERE o.id IS NULL;
-```
-
-**资深解法：** 也可用 `NOT EXISTS`，通常语义更直接；左连接版本更适合入门理解“反连接”。
-
-### 184. 部门工资最高的员工
-
-**基础解法：** 先按部门求最高薪水，再连接员工表找出薪水等于最高值的员工。
-
-```sql
-SELECT d.name AS Department, e.name AS Employee, e.salary AS Salary
-FROM Employee e
-JOIN Department d ON e.departmentId = d.id
-JOIN (
-    SELECT departmentId, MAX(salary) AS maxSalary
-    FROM Employee
-    GROUP BY departmentId
-) x ON e.departmentId = x.departmentId AND e.salary = x.maxSalary;
-```
-
-**资深解法：** 窗口函数可用 `DENSE_RANK() OVER (PARTITION BY departmentId ORDER BY salary DESC)`，排名为 1 的员工即答案。
-
-### 185. 部门工资前三高的所有员工
-
-**基础解法：** 对每个员工统计本部门有多少个不同薪水比它高，小于 3 则属于前三高。
-
-**资深解法：** 窗口函数按部门分区排名，保留 `DENSE_RANK <= 3`。
-
-```sql
-SELECT Department, Employee, Salary
-FROM (
-    SELECT d.name AS Department,
-           e.name AS Employee,
-           e.salary AS Salary,
-           DENSE_RANK() OVER (
-               PARTITION BY e.departmentId
-               ORDER BY e.salary DESC
-           ) AS rk
-    FROM Employee e
-    JOIN Department d ON e.departmentId = d.id
-) t
-WHERE rk <= 3;
-```
-
-**基础语法与思想：** `PARTITION BY` 在每个部门内部单独排名；`DENSE_RANK` 能正确处理并列薪水。
-
-### 186. 反转字符串中的单词 II
-
-**基础解法：** 按空格切分后反向拼接，再写回字符数组。
-
-**资深解法：** 原地先整体反转，再逐个单词反转，空间 `O(1)`。
+算法思想：DFS 后序加入课程，遇到环返回空数组。
 
 ```java
 class Solution {
-    public void reverseWords(char[] s) {
-        reverse(s, 0, s.length - 1);
-        int start = 0;
-        for (int i = 0; i <= s.length; i++) {
-            if (i == s.length || s[i] == ' ') {
-                reverse(s, start, i - 1);
-                start = i + 1;
-            }
+    private java.util.List<Integer>[] graph;
+    private int[] color;
+    private java.util.List<Integer> order = new java.util.ArrayList<>();
+
+    public int[] findOrder(int numCourses, int[][] prerequisites) {
+        graph = new java.util.ArrayList[numCourses];
+        for (int i = 0; i < numCourses; i++) graph[i] = new java.util.ArrayList<>();
+        for (int[] p : prerequisites) graph[p[1]].add(p[0]);
+        color = new int[numCourses];
+        for (int i = 0; i < numCourses; i++) {
+            if (color[i] == 0 && hasCycle(i)) return new int[0];
         }
-    }
-
-    private void reverse(char[] s, int left, int right) {
-        while (left < right) {
-            char tmp = s[left];
-            s[left++] = s[right];
-            s[right--] = tmp;
-        }
-    }
-}
-```
-
-**基础语法与思想：** `char[]` 可原地修改；“整体反转 + 局部反转”能把单词顺序反转且保持单词内部字符正常。
-
-### 187. 重复的 DNA 序列
-
-**基础解法：** 枚举所有长度为 10 的子串，用集合统计出现次数。
-
-```java
-class Solution {
-    public List<String> findRepeatedDnaSequences(String s) {
-        Set<String> seen = new HashSet<>();
-        Set<String> repeated = new HashSet<>();
-        for (int i = 0; i + 10 <= s.length(); i++) {
-            String sub = s.substring(i, i + 10);
-            if (!seen.add(sub)) repeated.add(sub);
-        }
-        return new ArrayList<>(repeated);
-    }
-}
-```
-
-**资深解法：** 可把 A/C/G/T 编码成 2 位，滚动维护 20 位整数窗口，降低字符串创建开销。
-**基础语法与思想：** `Set.add` 返回是否首次加入；固定长度窗口适合滑动哈希。
-
-### 188. 买卖股票的最佳时机 IV
-
-**基础解法：** 三维 DP：天数、交易次数、是否持股，表达清楚但空间较大。
-
-**资深解法：** 压缩为 `buy[t]` 和 `sell[t]`；当 `k >= n/2` 时退化为不限交易次数。
-
-```java
-class Solution {
-    public int maxProfit(int k, int[] prices) {
-        int n = prices.length;
-        if (n == 0 || k == 0) return 0;
-        if (k >= n / 2) {
-            int ans = 0;
-            for (int i = 1; i < n; i++) {
-                if (prices[i] > prices[i - 1]) ans += prices[i] - prices[i - 1];
-            }
-            return ans;
-        }
-        int[] buy = new int[k + 1];
-        int[] sell = new int[k + 1];
-        Arrays.fill(buy, Integer.MIN_VALUE / 2);
-        for (int price : prices) {
-            for (int t = 1; t <= k; t++) {
-                buy[t] = Math.max(buy[t], sell[t - 1] - price);
-                sell[t] = Math.max(sell[t], buy[t] + price);
-            }
-        }
-        return sell[k];
-    }
-}
-```
-
-**基础语法与思想：** `buy[t]` 表示完成不超过 `t` 次交易且持股的最大收益；状态机 DP 是股票题通用模型。
-
-### 189. 轮转数组
-
-**基础解法：** 使用额外数组，把 `nums[i]` 放到 `(i + k) % n`。
-
-**资深解法：** 三次反转：整体反转、反转前 `k` 个、反转剩余元素。
-
-```java
-class Solution {
-    public void rotate(int[] nums, int k) {
-        int n = nums.length;
-        k %= n;
-        reverse(nums, 0, n - 1);
-        reverse(nums, 0, k - 1);
-        reverse(nums, k, n - 1);
-    }
-
-    private void reverse(int[] nums, int left, int right) {
-        while (left < right) {
-            int tmp = nums[left];
-            nums[left++] = nums[right];
-            nums[right--] = tmp;
-        }
-    }
-}
-```
-
-**基础语法与思想：** `k %= n` 处理轮转超过数组长度；原地反转空间 `O(1)`。
-
-### 190. 颠倒二进制位
-
-**基础解法：** 循环 32 次，每次取 `n` 的最低位并追加到答案低位。
-
-```java
-public class Solution {
-    public int reverseBits(int n) {
-        int ans = 0;
-        for (int i = 0; i < 32; i++) {
-            ans = (ans << 1) | (n & 1);
-            n >>>= 1;
-        }
-        return ans;
-    }
-}
-```
-
-**资深解法：** 可用分治掩码交换 16/8/4/2/1 位块；循环版更易掌握。
-**基础语法与思想：** `>>>` 是无符号右移，适合处理二进制位而不受符号位影响。
-
-### 191. 位1的个数
-
-**基础解法：** 循环 32 次检查最低位是否为 1。
-
-**资深解法：** 每次执行 `n &= n - 1` 都会删除最低位的 1，循环次数等于 1 的个数。
-
-```java
-class Solution {
-    public int hammingWeight(int n) {
-        int ans = 0;
-        while (n != 0) {
-            n &= n - 1;
-            ans++;
-        }
-        return ans;
-    }
-}
-```
-
-**基础语法与思想：** Java `int` 是有符号的，但位运算按二进制补码执行；该技巧对负数同样有效。
-
-### 192. 统计词频
-
-**基础解法：** 将空白转换为换行，排序后统计重复行，再按次数降序。
-
-```bash
-tr -s ' ' '\n' < words.txt | sort | uniq -c | sort -nr | awk '{print $2, $1}'
-```
-
-**资深解法：** 这是 Shell 题，不用 Java 提交；管道把“分词、排序、计数、重排输出”拆成一串小工具。
-
-### 193. 有效电话号码
-
-**基础解法：** 用正则匹配两种合法格式：`xxx-xxx-xxxx` 和 `(xxx) xxx-xxxx`。
-
-```bash
-grep -E '^([0-9]{3}-|\([0-9]{3}\) )[0-9]{3}-[0-9]{4}$' file.txt
-```
-
-**资深解法：** `^` 与 `$` 保证整行匹配；括号在扩展正则中要转义。
-
-### 194. 转置文件
-
-**基础解法：** 用 `awk` 按行读取字段，把同一列的内容累加到同一个输出行。
-
-```bash
-awk '{
-    for (i = 1; i <= NF; i++) {
-        a[i] = a[i] (NR == 1 ? "" : " ") $i
-    }
-}
-END {
-    for (i = 1; i <= NF; i++) print a[i]
-}' file.txt
-```
-
-**资深解法：** `NR` 是当前行号，`NF` 是当前行字段数；转置的本质是把第 `i` 列聚合成第 `i` 行。
-
-### 195. 第十行
-
-**基础解法：** 用 `awk` 输出行号为 10 的行。
-
-```bash
-awk 'NR == 10' file.txt
-```
-
-**资深解法：** 也可用 `sed -n '10p' file.txt`；Shell 题的重点是熟悉文本流按行处理。
-
-### 196. 删除重复的电子邮箱
-
-**基础解法：** 自连接删除邮箱相同且 `id` 更大的记录，保留最小 `id`。
-
-```sql
-DELETE p1
-FROM Person p1
-JOIN Person p2
-  ON p1.email = p2.email AND p1.id > p2.id;
-```
-
-**资深解法：** 删除题要先明确保留规则；这里用 `p1.id > p2.id` 精确表示“删掉重复组中较晚的记录”。
-
-### 197. 上升的温度
-
-**基础解法：** 自连接相邻日期记录，找今天温度高于昨天的 `id`。
-
-```sql
-SELECT w1.id
-FROM Weather w1
-JOIN Weather w2
-  ON DATEDIFF(w1.recordDate, w2.recordDate) = 1
-WHERE w1.temperature > w2.temperature;
-```
-
-**资深解法：** 支持日期加减的数据库也可写成 `w1.recordDate = DATE_ADD(w2.recordDate, INTERVAL 1 DAY)`。
-
-### 198. 打家劫舍
-
-**基础解法：** `dp[i]` 表示前 `i` 间房能抢到的最大金额，转移为抢当前或不抢当前。
-
-**资深解法：** 只依赖前两个状态，用两个变量压缩空间。
-
-```java
-class Solution {
-    public int rob(int[] nums) {
-        int prev2 = 0, prev1 = 0;
-        for (int x : nums) {
-            int cur = Math.max(prev1, prev2 + x);
-            prev2 = prev1;
-            prev1 = cur;
-        }
-        return prev1;
-    }
-}
-```
-
-**基础语法与思想：** 相邻房屋不能同时选择，所以每一步只比较“不抢当前”和“抢当前加前前状态”。
-
-### 199. 二叉树的右视图
-
-**基础解法：** BFS 层序遍历，每层最后一个节点进入答案。
-
-```java
-class Solution {
-    public List<Integer> rightSideView(TreeNode root) {
-        List<Integer> ans = new ArrayList<>();
-        if (root == null) return ans;
-        Queue<TreeNode> queue = new ArrayDeque<>();
-        queue.offer(root);
-        while (!queue.isEmpty()) {
-            int size = queue.size();
-            for (int i = 0; i < size; i++) {
-                TreeNode node = queue.poll();
-                if (i == size - 1) ans.add(node.val);
-                if (node.left != null) queue.offer(node.left);
-                if (node.right != null) queue.offer(node.right);
-            }
-        }
-        return ans;
-    }
-}
-```
-
-**资深解法：** DFS 先访问右子树，当深度首次出现时记录该节点。
-**基础语法与思想：** `Queue.offer/poll` 完成层序遍历；右视图就是每一层最右侧节点。
-
-### 200. 岛屿数量
-
-**基础解法：** 遍历网格，遇到陆地就 DFS/BFS 把整座岛标记为水，岛屿数加一。
-
-```java
-class Solution {
-    public int numIslands(char[][] grid) {
-        int m = grid.length, n = grid[0].length, ans = 0;
-        for (int i = 0; i < m; i++) {
-            for (int j = 0; j < n; j++) {
-                if (grid[i][j] == '1') {
-                    ans++;
-                    dfs(grid, i, j);
-                }
-            }
-        }
+        java.util.Collections.reverse(order);
+        int[] ans = new int[numCourses];
+        for (int i = 0; i < numCourses; i++) ans[i] = order.get(i);
         return ans;
     }
 
-    private void dfs(char[][] grid, int i, int j) {
-        if (i < 0 || i == grid.length || j < 0 || j == grid[0].length || grid[i][j] != '1') {
-            return;
+    private boolean hasCycle(int cur) {
+        color[cur] = 1;
+        for (int next : graph[cur]) {
+            if (color[next] == 1) return true;
+            if (color[next] == 0 && hasCycle(next)) return true;
         }
-        grid[i][j] = '0';
-        dfs(grid, i + 1, j);
-        dfs(grid, i - 1, j);
-        dfs(grid, i, j + 1);
-        dfs(grid, i, j - 1);
+        color[cur] = 2;
+        order.add(cur);
+        return false;
     }
 }
 ```
 
-**资深解法：** 并查集也可把相邻陆地合并，适合扩展到动态图；静态网格 DFS 最直接。
-**基础语法与思想：** 原地改写 `grid` 作为访问标记；这是连通块计数模板。
 
-# Java 解法补充附录（201-210）
 
-### 201. 数字范围按位与
+#### 资深解法：BFS 拓扑排序
 
-**基础解法：** 从 `left` 到 `right` 逐个做按位与，区间很大时会超时。
+算法思想：BFS 拓扑排序，出队顺序就是一种合法学习顺序。
 
-**资深解法：** 不断右移两端点，直到它们相等，保留公共二进制前缀。
-
-```java
-class Solution {
-    public int rangeBitwiseAnd(int left, int right) {
-        int shift = 0;
-        while (left < right) {
-            left >>= 1;
-            right >>= 1;
-            shift++;
-        }
-        return left << shift;
-    }
-}
-```
-
-**基础语法与思想：** `>>` 和 `<<` 移动二进制位；连续区间按位与只会留下所有数共同的高位前缀。
-
-### 202. 快乐数
-
-**基础解法：** 用 `HashSet` 记录出现过的数字，循环则不是快乐数，到 1 则是。
-
-**资深解法：** 快慢指针检测数值变换链是否成环，空间 `O(1)`。
-
-```java
-class Solution {
-    public boolean isHappy(int n) {
-        int slow = n, fast = next(n);
-        while (fast != 1 && slow != fast) {
-            slow = next(slow);
-            fast = next(next(fast));
-        }
-        return fast == 1;
-    }
-
-    private int next(int n) {
-        int sum = 0;
-        while (n > 0) {
-            int d = n % 10;
-            sum += d * d;
-            n /= 10;
-        }
-        return sum;
-    }
-}
-```
-
-**基础语法与思想：** `%` 和 `/` 拆数字位；重复状态意味着进入循环。
-
-### 203. 移除链表元素
-
-**基础解法：** 先处理所有头节点等于 `val` 的情况，再遍历删除后续节点。
-
-**资深解法：** 虚拟头结点统一头删和中间删除。
-
-```java
-class Solution {
-    public ListNode removeElements(ListNode head, int val) {
-        ListNode dummy = new ListNode(0, head);
-        ListNode cur = dummy;
-        while (cur.next != null) {
-            if (cur.next.val == val) cur.next = cur.next.next;
-            else cur = cur.next;
-        }
-        return dummy.next;
-    }
-}
-```
-
-**基础语法与思想：** 删除节点时不移动 `cur`，因为新接上的节点仍需检查。
-
-### 204. 计数质数
-
-**基础解法：** 对每个数试除到平方根，整体约 `O(n sqrt n)`。
-
-**资深解法：** 埃氏筛，从每个质数的平方开始标记倍数。
-
-```java
-class Solution {
-    public int countPrimes(int n) {
-        boolean[] composite = new boolean[n];
-        int ans = 0;
-        for (int i = 2; i < n; i++) {
-            if (!composite[i]) {
-                ans++;
-                if ((long) i * i < n) {
-                    for (int j = i * i; j < n; j += i) composite[j] = true;
-                }
-            }
-        }
-        return ans;
-    }
-}
-```
-
-**基础语法与思想：** `long` 防止 `i * i` 溢出；质数筛用已知质数排除合数。
-
-### 205. 同构字符串
-
-**基础解法：** 双向哈希表维护 `s -> t` 与 `t -> s` 的一致映射。
-
-**资深解法：** 用两个长度 256 的数组记录字符上次出现位置，位置不同则映射不一致。
-
-```java
-class Solution {
-    public boolean isIsomorphic(String s, String t) {
-        int[] a = new int[256], b = new int[256];
-        for (int i = 0; i < s.length(); i++) {
-            char x = s.charAt(i), y = t.charAt(i);
-            if (a[x] != b[y]) return false;
-            a[x] = b[y] = i + 1;
-        }
-        return true;
-    }
-}
-```
-
-**基础语法与思想：** 用 `i + 1` 区分“未出现”的 0；同构要求双射。
-
-### 206. 反转链表
-
-**基础解法：** 把节点值放入数组反向写回，改变值不改变节点。
-
-**资深解法：** 三指针原地反转 `next` 指向。
-
-```java
-class Solution {
-    public ListNode reverseList(ListNode head) {
-        ListNode prev = null, cur = head;
-        while (cur != null) {
-            ListNode next = cur.next;
-            cur.next = prev;
-            prev = cur;
-            cur = next;
-        }
-        return prev;
-    }
-}
-```
-
-**基础语法与思想：** 改指针前保存 `next`；链表反转模板会反复出现。
-
-### 207. 课程表
-
-**基础解法：** DFS 三色标记检测有向图是否存在环。
-
-**资深解法：** 拓扑排序统计入度，能修完所有课程说明无环。
-
-```java
-class Solution {
-    public boolean canFinish(int numCourses, int[][] prerequisites) {
-        List<Integer>[] graph = new ArrayList[numCourses];
-        for (int i = 0; i < numCourses; i++) graph[i] = new ArrayList<>();
-        int[] indegree = new int[numCourses];
-        for (int[] p : prerequisites) {
-            graph[p[1]].add(p[0]);
-            indegree[p[0]]++;
-        }
-        Queue<Integer> queue = new ArrayDeque<>();
-        for (int i = 0; i < numCourses; i++) if (indegree[i] == 0) queue.offer(i);
-        int seen = 0;
-        while (!queue.isEmpty()) {
-            int cur = queue.poll();
-            seen++;
-            for (int next : graph[cur]) {
-                if (--indegree[next] == 0) queue.offer(next);
-            }
-        }
-        return seen == numCourses;
-    }
-}
-```
-
-**基础语法与思想：** 邻接表表达先修依赖；入度为 0 的课程可先学习。
-
-### 208. 实现 Trie（前缀树）
-
-**基础解法：** 用 `HashSet` 保存所有单词，前缀查询时遍历所有单词判断。
-
-**资深解法：** Trie 每个节点保存 26 个子节点和单词结束标记。
-
-```java
-class Trie {
-    private static class Node {
-        Node[] next = new Node[26];
-        boolean word;
-    }
-
-    private Node root = new Node();
-
-    public void insert(String word) {
-        Node cur = root;
-        for (char c : word.toCharArray()) {
-            int i = c - 'a';
-            if (cur.next[i] == null) cur.next[i] = new Node();
-            cur = cur.next[i];
-        }
-        cur.word = true;
-    }
-
-    public boolean search(String word) {
-        Node node = find(word);
-        return node != null && node.word;
-    }
-
-    public boolean startsWith(String prefix) {
-        return find(prefix) != null;
-    }
-
-    private Node find(String s) {
-        Node cur = root;
-        for (char c : s.toCharArray()) {
-            cur = cur.next[c - 'a'];
-            if (cur == null) return null;
-        }
-        return cur;
-    }
-}
-```
-
-**基础语法与思想：** `Node[] next` 是固定字母表的分支表；Trie 用路径共享压缩公共前缀。
-
-### 209. 长度最小的子数组
-
-**基础解法：** 枚举左端点并向右累加，时间 `O(n^2)`。
-
-**资深解法：** 正整数数组可用滑动窗口，和达到目标后尽量收缩左端点。
-
-```java
-class Solution {
-    public int minSubArrayLen(int target, int[] nums) {
-        int left = 0, sum = 0, ans = Integer.MAX_VALUE;
-        for (int right = 0; right < nums.length; right++) {
-            sum += nums[right];
-            while (sum >= target) {
-                ans = Math.min(ans, right - left + 1);
-                sum -= nums[left++];
-            }
-        }
-        return ans == Integer.MAX_VALUE ? 0 : ans;
-    }
-}
-```
-
-**基础语法与思想：** 数组元素全为正数，窗口扩大和变大、收缩和变小，因此双指针成立。
-
-### 210. 课程表 II
-
-**基础解法：** DFS 后序加入课程，遇到环返回空数组。
-
-**资深解法：** BFS 拓扑排序，出队顺序就是一种合法学习顺序。
 
 ```java
 class Solution {
@@ -1884,4 +2611,9 @@ class Solution {
 }
 ```
 
-**基础语法与思想：** 拓扑排序不仅能判环，还能输出满足依赖的线性顺序。
+
+#### 基础语法与算法思想
+
+- 拓扑排序不仅能判环，还能输出满足依赖的线性顺序。
+
+---

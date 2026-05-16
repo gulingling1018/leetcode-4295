@@ -1,5 +1,3 @@
-# LeetCode 题目合集 Part 6
-
 ## 151. 反转字符串中的单词 (Medium)
 
 给你一个字符串  `s`  ，请你反转字符串中  **单词**  的顺序。
@@ -40,6 +38,68 @@
 
  **进阶：** 如果字符串在你使用的编程语言中是一种可变数据类型，请尝试使用  `O(1)`  额外空间复杂度的  **原地**  解法。
 
+### Java 解法补充
+
+#### 基础解法：`trim + split + 反向拼接`
+
+算法思想：`trim + split + 反向拼接`，先去掉首尾空格，再按连续空白切分单词。
+
+
+```java
+class Solution {
+    public String reverseWords(String s) {
+        String[] words = s.trim().split("\\s+");
+        StringBuilder ans = new StringBuilder();
+        for (int i = words.length - 1; i >= 0; i--) {
+            if (ans.length() > 0) ans.append(' ');
+            ans.append(words[i]);
+        }
+        return ans.toString();
+    }
+}
+```
+
+
+#### 资深解法：若输入是可变字符数组
+
+算法思想：若输入是可变字符数组，可整体反转再逐词反转；本题 Java `String` 不可变，实际提交以切分法最简洁。
+
+```java
+class Solution {
+    public String reverseWords(String s) {
+        char[] chars = s.toCharArray();
+        reverse(chars, 0, chars.length - 1);
+
+        int write = 0;
+        int read = 0;
+        while (read < chars.length) {
+            while (read < chars.length && chars[read] == ' ') read++;
+            if (read == chars.length) break;
+            if (write > 0) chars[write++] = ' ';
+
+            int wordStart = write;
+            while (read < chars.length && chars[read] != ' ') {
+                chars[write++] = chars[read++];
+            }
+            reverse(chars, wordStart, write - 1);
+        }
+        return new String(chars, 0, write);
+    }
+
+    private void reverse(char[] chars, int left, int right) {
+        while (left < right) {
+            char temp = chars[left];
+            chars[left++] = chars[right];
+            chars[right--] = temp;
+        }
+    }
+}
+```
+
+#### 基础语法与算法思想
+
+- `split("\\s+")` 使用正则匹配连续空白；算法核心是“单词级别反转”，时间 `O(n)`，空间 `O(n)`。
+
 ---
 
 ## 152. 乘积最大子数组 (Medium)
@@ -70,6 +130,60 @@
  `1 <= nums.length <= 2 * 104`
  `-10 <= nums[i] <= 10`
  `nums`  的任何子数组的乘积都  **保证**  是一个  **32-位**  整数
+
+### Java 解法补充
+
+#### 基础解法：暴力枚举每个起点并持续累乘
+
+算法思想：暴力枚举每个起点并持续累乘，维护最大值，时间 `O(n^2)`。
+
+```java
+class Solution {
+    public int maxProduct(int[] nums) {
+        int ans = nums[0];
+        for (int i = 0; i < nums.length; i++) {
+            int product = 1;
+            for (int j = i; j < nums.length; j++) {
+                product *= nums[j];
+                ans = Math.max(ans, product);
+            }
+        }
+        return ans;
+    }
+}
+```
+
+
+
+#### 资深解法：动态规划同时维护以当前位置结尾的最大积和最小积；遇到负数时最大/最小会互换
+
+算法思想：动态规划同时维护以当前位置结尾的最大积和最小积；遇到负数时最大/最小会互换。
+
+
+```java
+class Solution {
+    public int maxProduct(int[] nums) {
+        int max = nums[0], min = nums[0], ans = nums[0];
+        for (int i = 1; i < nums.length; i++) {
+            int x = nums[i];
+            if (x < 0) {
+                int t = max;
+                max = min;
+                min = t;
+            }
+            max = Math.max(x, max * x);
+            min = Math.min(x, min * x);
+            ans = Math.max(ans, max);
+        }
+        return ans;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- `Math.max/min` 滚动更新状态；负数会改变乘积符号，所以要保留最小积。时间 `O(n)`，空间 `O(1)`。
 
 ---
 
@@ -117,6 +231,50 @@
  `nums`  中的所有整数  **互不相同**
  `nums`  原来是一个升序排序的数组，并进行了  `1`  至  `n`  次旋转
 
+### Java 解法补充
+
+#### 基础解法：线性扫描找到第一个下降点或全局最小值
+
+算法思想：线性扫描找到第一个下降点或全局最小值，时间 `O(n)`。
+
+```java
+class Solution {
+    public int findMin(int[] nums) {
+        int ans = nums[0];
+        for (int x : nums) {
+            ans = Math.min(ans, x);
+        }
+        return ans;
+    }
+}
+```
+
+
+
+#### 资深解法：二分比较 `nums[mid]` 与 `nums[right]`；右侧有序且 `mid` 更大时最小值在右边
+
+算法思想：二分比较 `nums[mid]` 与 `nums[right]`；右侧有序且 `mid` 更大时最小值在右边，否则在左边含 `mid`。
+
+
+```java
+class Solution {
+    public int findMin(int[] nums) {
+        int left = 0, right = nums.length - 1;
+        while (left < right) {
+            int mid = left + (right - left) / 2;
+            if (nums[mid] > nums[right]) left = mid + 1;
+            else right = mid;
+        }
+        return nums[left];
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 二分循环条件用 `left < right`，收敛后 `left` 即答案；无重复元素时判断明确，时间 `O(log n)`。
+
 ---
 
 ## 154. 寻找旋转排序数组中的最小值 II (Hard)
@@ -154,6 +312,51 @@
 
 
  **进阶：** 这道题与 寻找旋转排序数组中的最小值 类似，但  `nums`  可能包含重复元素。允许重复会影响算法的时间复杂度吗？会如何影响，为什么？
+
+### Java 解法补充
+
+#### 基础解法：直接遍历求最小值
+
+算法思想：直接遍历求最小值，时间 `O(n)`。
+
+```java
+class Solution {
+    public int findMin(int[] nums) {
+        int ans = nums[0];
+        for (int x : nums) {
+            if (x < ans) ans = x;
+        }
+        return ans;
+    }
+}
+```
+
+
+
+#### 资深解法：含重复元素时仍二分；当 `nums[mid] == nums[right]` 无法判断方向
+
+算法思想：含重复元素时仍二分；当 `nums[mid] == nums[right]` 无法判断方向，只能安全地 `right--`。
+
+
+```java
+class Solution {
+    public int findMin(int[] nums) {
+        int left = 0, right = nums.length - 1;
+        while (left < right) {
+            int mid = left + (right - left) / 2;
+            if (nums[mid] > nums[right]) left = mid + 1;
+            else if (nums[mid] < nums[right]) right = mid;
+            else right--;
+        }
+        return nums[left];
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- `right--` 不会丢失唯一最小值，因为 `nums[mid] == nums[right]` 时右端点可被同值替代；最坏时间 `O(n)`，平均接近 `O(log n)`。
 
 ---
 
@@ -197,6 +400,75 @@ minStack.getMin();   --> 返回 -2.
  `pop` 、 `top`  和  `getMin`  操作总是在  **非空栈**  上调用
  `push` ,  `pop` ,  `top` , and  `getMin` 最多被调用  `3 * 104`  次
 
+### Java 解法补充
+
+#### 基础解法：普通栈保存元素
+
+算法思想：普通栈保存元素，`getMin` 时遍历栈求最小值，查询 `O(n)`。
+
+```java
+class MinStack {
+    private java.util.Deque<Integer> stack = new java.util.ArrayDeque<>();
+
+    public void push(int val) {
+        stack.push(val);
+    }
+
+    public void pop() {
+        stack.pop();
+    }
+
+    public int top() {
+        return stack.peek();
+    }
+
+    public int getMin() {
+        int min = Integer.MAX_VALUE;
+        for (int x : stack) {
+            min = Math.min(min, x);
+        }
+        return min;
+    }
+}
+```
+
+
+
+#### 资深解法：双栈：数据栈保存所有值
+
+算法思想：双栈：数据栈保存所有值，最小栈同步保存当前位置的最小值。
+
+
+```java
+class MinStack {
+    private Deque<Integer> stack = new ArrayDeque<>();
+    private Deque<Integer> mins = new ArrayDeque<>();
+
+    public void push(int val) {
+        stack.push(val);
+        mins.push(mins.isEmpty() ? val : Math.min(val, mins.peek()));
+    }
+
+    public void pop() {
+        stack.pop();
+        mins.pop();
+    }
+
+    public int top() {
+        return stack.peek();
+    }
+
+    public int getMin() {
+        return mins.peek();
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- `Deque` 的 `push/pop/peek` 可当栈用；用空间换 `getMin` 的 `O(1)` 查询。
+
 ---
 
 ## 156. 上下翻转二叉树 (Medium)
@@ -237,6 +509,55 @@ minStack.getMin();   --> 返回 -2.
 `1 <= Node.val <= 10`
 
 题面补充来源：LeetCode Wiki，核对日期：2026-05-15。
+
+### Java 解法补充
+
+#### 基础解法：递归到底部最左节点作为新根
+
+算法思想：递归到底部最左节点作为新根，回溯时重连当前节点、左子节点、右子节点。
+
+
+```java
+class Solution {
+    public TreeNode upsideDownBinaryTree(TreeNode root) {
+        if (root == null || root.left == null) return root;
+        TreeNode newRoot = upsideDownBinaryTree(root.left);
+        root.left.left = root.right;
+        root.left.right = root;
+        root.left = null;
+        root.right = null;
+        return newRoot;
+    }
+}
+```
+
+
+#### 资深解法：迭代维护 `parent` 与原右子树
+
+算法思想：迭代维护 `parent` 与原右子树，沿左链向下翻转，空间 `O(1)`。
+
+
+```java
+class Solution {
+    public TreeNode upsideDownBinaryTree(TreeNode root) {
+        TreeNode parent = null, parentRight = null;
+        while (root != null) {
+            TreeNode next = root.left;
+            root.left = parentRight;
+            parentRight = root.right;
+            root.right = parent;
+            parent = root;
+            root = next;
+        }
+        return parent;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 重连指针前必须先保存 `next`；树形翻转本质是把左链改造成新右链。
 
 ---
 
@@ -284,6 +605,56 @@ int read(char[] buf, int n)
 
 题面补充来源：LeetCode Wiki，核对日期：2026-05-15。
 
+### Java 解法补充
+
+#### 基础解法：每次调用 `read4` 读取最多 4 个字符
+
+算法思想：每次调用 `read4` 读取最多 4 个字符，再拷贝到目标缓冲区，直到读够或文件结束。
+
+
+```java
+public class Solution extends Reader4 {
+    public int read(char[] buf, int n) {
+        char[] tmp = new char[4];
+        int total = 0;
+        while (total < n) {
+            int cnt = read4(tmp);
+            if (cnt == 0) break;
+            for (int i = 0; i < cnt && total < n; i++) {
+                buf[total++] = tmp[i];
+            }
+        }
+        return total;
+    }
+}
+```
+
+
+#### 资深解法：单次调用场景不需要跨调用缓存；关键是最后一批可能读到超过 `n` 的字符
+
+算法思想：单次调用场景不需要跨调用缓存；关键是最后一批可能读到超过 `n` 的字符，只复制需要的部分。
+
+```java
+public class Solution extends Reader4 {
+    public int read(char[] buf, int n) {
+        char[] temp = new char[4];
+        int total = 0;
+        while (total < n) {
+            int count = read4(temp);
+            if (count == 0) break;
+            int copy = Math.min(count, n - total);
+            System.arraycopy(temp, 0, buf, total, copy);
+            total += copy;
+        }
+        return total;
+    }
+}
+```
+
+#### 基础语法与算法思想
+
+- `char[]` 是可变缓冲区；`read4` 返回实际读取量，返回 0 表示文件结束。
+
 ---
 
 ## 158. 用 Read4 读取 N 个字符 II - 多次调用 (Hard)
@@ -305,6 +676,75 @@ int read(char[] buf, int n)
 `read` 可能被多次调用；`buf` 有足够空间保存 `n` 个字符；每个测试用例之间应重置类变量。
 
 题面补充来源：LeetCode Wiki，核对日期：2026-05-15。
+
+### Java 解法补充
+
+#### 基础解法：队列缓存上次 `read4` 多读的字符
+
+算法思想：用队列保存上次多读但还没消费的字符。每次 `read` 先取缓存，再继续调用 `read4`，写不下的字符重新放入缓存。
+
+```java
+public class Solution extends Reader4 {
+    private java.util.Queue<Character> saved = new java.util.ArrayDeque<>();
+
+    public int read(char[] buf, int n) {
+        int total = 0;
+        while (total < n && !saved.isEmpty()) {
+            buf[total++] = saved.poll();
+        }
+
+        char[] temp = new char[4];
+        while (total < n) {
+            int count = read4(temp);
+            if (count == 0) break;
+
+            int i = 0;
+            while (i < count && total < n) {
+                buf[total++] = temp[i++];
+            }
+            while (i < count) {
+                saved.offer(temp[i++]);
+            }
+        }
+        return total;
+    }
+}
+```
+
+
+
+#### 资深解法：对象字段保存 `read4` 的剩余字符
+
+算法思想：对象字段保存 `read4` 的剩余字符，多次 `read` 共享这段缓存。
+
+
+```java
+public class Solution extends Reader4 {
+    private char[] cache = new char[4];
+    private int size = 0;
+    private int index = 0;
+
+    public int read(char[] buf, int n) {
+        int total = 0;
+        while (total < n) {
+            if (index == size) {
+                size = read4(cache);
+                index = 0;
+                if (size == 0) break;
+            }
+            while (total < n && index < size) {
+                buf[total++] = cache[index++];
+            }
+        }
+        return total;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 类成员变量跨方法调用保留状态；这是“流式读取”的典型缓存设计。
 
 ---
 
@@ -334,6 +774,61 @@ int read(char[] buf, int n)
 `s` 由英文字母组成。
 
 题面补充来源：LeetCode Wiki，核对日期：2026-05-15。
+
+### Java 解法补充
+
+#### 基础解法：枚举左端点
+
+算法思想：枚举左端点，向右扩展并用集合统计不同字符，超过 2 个停止，时间 `O(n^2)`。
+
+```java
+class Solution {
+    public int lengthOfLongestSubstringTwoDistinct(String s) {
+        int ans = 0;
+        for (int left = 0; left < s.length(); left++) {
+            java.util.Set<Character> set = new java.util.HashSet<>();
+            for (int right = left; right < s.length(); right++) {
+                set.add(s.charAt(right));
+                if (set.size() > 2) break;
+                ans = Math.max(ans, right - left + 1);
+            }
+        }
+        return ans;
+    }
+}
+```
+
+
+
+#### 资深解法：滑动窗口维护字符频次
+
+算法思想：滑动窗口维护字符频次，窗口中不同字符超过 2 时移动左端点。
+
+
+```java
+class Solution {
+    public int lengthOfLongestSubstringTwoDistinct(String s) {
+        Map<Character, Integer> count = new HashMap<>();
+        int left = 0, ans = 0;
+        for (int right = 0; right < s.length(); right++) {
+            char c = s.charAt(right);
+            count.put(c, count.getOrDefault(c, 0) + 1);
+            while (count.size() > 2) {
+                char d = s.charAt(left++);
+                count.put(d, count.get(d) - 1);
+                if (count.get(d) == 0) count.remove(d);
+            }
+            ans = Math.max(ans, right - left + 1);
+        }
+        return ans;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- `getOrDefault` 简化计数；窗口满足约束时更新答案，不满足时收缩。
 
 ---
 
@@ -402,6 +897,57 @@ int read(char[] buf, int n)
 
  **进阶：** 你能否设计一个时间复杂度  `O(m + n)`  、仅用  `O(1)`  内存的解决方案？
 
+### Java 解法补充
+
+#### 基础解法：用 `HashSet` 保存链表 A 的节点引用
+
+算法思想：用 `HashSet` 保存链表 A 的节点引用，再扫描 B 找第一个已出现节点。
+
+```java
+public class Solution {
+    public ListNode getIntersectionNode(ListNode headA, ListNode headB) {
+        java.util.Set<ListNode> seen = new java.util.HashSet<>();
+        ListNode cur = headA;
+        while (cur != null) {
+            seen.add(cur);
+            cur = cur.next;
+        }
+
+        cur = headB;
+        while (cur != null) {
+            if (seen.contains(cur)) return cur;
+            cur = cur.next;
+        }
+        return null;
+    }
+}
+```
+
+
+
+#### 资深解法：双指针走完自己的链表后切到另一条链表
+
+算法思想：双指针走完自己的链表后切到另一条链表，长度差会被第二段抵消，最终在交点或 `null` 相遇。
+
+
+```java
+public class Solution {
+    public ListNode getIntersectionNode(ListNode headA, ListNode headB) {
+        ListNode a = headA, b = headB;
+        while (a != b) {
+            a = a == null ? headB : a.next;
+            b = b == null ? headA : b.next;
+        }
+        return a;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 比较节点是否相交要用引用相等 `a == b`，不是比较节点值。时间 `O(m+n)`，空间 `O(1)`。
+
 ---
 
 ## 161. 相隔为 1 的编辑距离 (Medium)
@@ -439,6 +985,64 @@ int read(char[] buf, int n)
 
 题面补充来源：leetcode.ca，核对日期：2026-05-15。
 
+### Java 解法补充
+
+#### 基础解法：递归/DP 判断编辑距离是否为 1
+
+算法思想：递归/DP 判断编辑距离是否为 1，较重但直观。
+
+```java
+class Solution {
+    public boolean isOneEditDistance(String s, String t) {
+        int m = s.length(), n = t.length();
+        int[][] dp = new int[m + 1][n + 1];
+        for (int i = 0; i <= m; i++) dp[i][0] = i;
+        for (int j = 0; j <= n; j++) dp[0][j] = j;
+
+        for (int i = 1; i <= m; i++) {
+            for (int j = 1; j <= n; j++) {
+                if (s.charAt(i - 1) == t.charAt(j - 1)) {
+                    dp[i][j] = dp[i - 1][j - 1];
+                } else {
+                    dp[i][j] = 1 + Math.min(dp[i - 1][j - 1],
+                            Math.min(dp[i - 1][j], dp[i][j - 1]));
+                }
+            }
+        }
+        return dp[m][n] == 1;
+    }
+}
+```
+
+
+
+#### 资深解法：双指针扫描
+
+算法思想：双指针扫描，第一次不同后根据长度关系跳过一个字符或同时跳过。
+
+
+```java
+class Solution {
+    public boolean isOneEditDistance(String s, String t) {
+        int m = s.length(), n = t.length();
+        if (Math.abs(m - n) > 1) return false;
+        for (int i = 0; i < Math.min(m, n); i++) {
+            if (s.charAt(i) != t.charAt(i)) {
+                if (m == n) return s.substring(i + 1).equals(t.substring(i + 1));
+                if (m < n) return s.substring(i).equals(t.substring(i + 1));
+                return s.substring(i + 1).equals(t.substring(i));
+            }
+        }
+        return Math.abs(m - n) == 1;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- `substring` 比较剩余后缀；必须排除完全相同的字符串，因为题目要求“恰好一次编辑”。
+
 ---
 
 ## 162. 寻找峰值 (Medium)
@@ -472,6 +1076,51 @@ int read(char[] buf, int n)
  `-231 <= nums[i] <= 231 - 1`
 对于所有有效的  `i`  都有  `nums[i] != nums[i + 1]`
 
+### Java 解法补充
+
+#### 基础解法：扫描数组
+
+算法思想：扫描数组，找到第一个大于左右相邻元素的位置。
+
+```java
+class Solution {
+    public int findPeakElement(int[] nums) {
+        for (int i = 0; i < nums.length; i++) {
+            boolean biggerThanLeft = i == 0 || nums[i] > nums[i - 1];
+            boolean biggerThanRight = i == nums.length - 1 || nums[i] > nums[i + 1];
+            if (biggerThanLeft && biggerThanRight) return i;
+        }
+        return 0;
+    }
+}
+```
+
+
+
+#### 资深解法：二分坡度：若 `nums[mid] < nums[mid + 1]`
+
+算法思想：二分坡度：若 `nums[mid] < nums[mid + 1]`，右侧一定存在峰值；否则左侧含 `mid` 存在峰值。
+
+
+```java
+class Solution {
+    public int findPeakElement(int[] nums) {
+        int left = 0, right = nums.length - 1;
+        while (left < right) {
+            int mid = left + (right - left) / 2;
+            if (nums[mid] < nums[mid + 1]) left = mid + 1;
+            else right = mid;
+        }
+        return left;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 循环中访问 `mid + 1`，所以条件必须是 `left < right`；峰值可不唯一，返回任一即可。
+
 ---
 
 ## 163. 缺失的区间 (Easy)
@@ -503,6 +1152,58 @@ int read(char[] buf, int n)
 
 题面补充来源：LeetCode Wiki，核对日期：2026-05-15。
 
+### Java 解法补充
+
+#### 基础解法：在首尾加哨兵
+
+算法思想：在首尾加哨兵，逐段检查相邻数字之间是否有空缺。
+
+
+```java
+class Solution {
+    public List<List<Integer>> findMissingRanges(int[] nums, int lower, int upper) {
+        List<List<Integer>> ans = new ArrayList<>();
+        long prev = (long) lower - 1;
+        for (int i = 0; i <= nums.length; i++) {
+            long cur = i == nums.length ? (long) upper + 1 : nums[i];
+            if (cur - prev >= 2) {
+                ans.add(Arrays.asList((int) (prev + 1), (int) (cur - 1)));
+            }
+            prev = cur;
+        }
+        return ans;
+    }
+}
+```
+
+
+#### 资深解法：使用 `long` 做哨兵
+
+算法思想：使用 `long` 做哨兵，避免 `lower - 1` 或 `upper + 1` 在整数边界溢出。
+
+```java
+class Solution {
+    public java.util.List<java.util.List<Integer>> findMissingRanges(int[] nums, int lower, int upper) {
+        java.util.List<java.util.List<Integer>> ans = new java.util.ArrayList<>();
+        long next = lower;
+        for (int x : nums) {
+            if (x > next) addRange(ans, next, (long) x - 1);
+            next = (long) x + 1;
+        }
+        if (next <= upper) addRange(ans, next, upper);
+        return ans;
+    }
+
+    private void addRange(java.util.List<java.util.List<Integer>> ans, long left, long right) {
+        ans.add(java.util.Arrays.asList((int) left, (int) right));
+    }
+}
+```
+
+#### 基础语法与算法思想
+
+- `Arrays.asList(a, b)` 生成闭区间；思想是检查两个已存在边界之间的空档。
+
 ---
 
 ## 164. 最大间距 (Medium)
@@ -531,6 +1232,71 @@ int read(char[] buf, int n)
 
  `1 <= nums.length <= 105`
  `0 <= nums[i] <= 109`
+
+### Java 解法补充
+
+#### 基础解法：排序后扫描相邻差值
+
+算法思想：排序后扫描相邻差值，时间 `O(n log n)`。
+
+```java
+class Solution {
+    public int maximumGap(int[] nums) {
+        if (nums.length < 2) return 0;
+        java.util.Arrays.sort(nums);
+        int ans = 0;
+        for (int i = 1; i < nums.length; i++) {
+            ans = Math.max(ans, nums[i] - nums[i - 1]);
+        }
+        return ans;
+    }
+}
+```
+
+
+
+#### 资深解法：桶排序思想。若最大间距存在
+
+算法思想：桶排序思想。若最大间距存在，一定出现在非空桶之间；桶内最大差不会超过桶宽。
+
+
+```java
+class Solution {
+    public int maximumGap(int[] nums) {
+        int n = nums.length;
+        if (n < 2) return 0;
+        int min = nums[0], max = nums[0];
+        for (int x : nums) {
+            min = Math.min(min, x);
+            max = Math.max(max, x);
+        }
+        if (min == max) return 0;
+        int size = Math.max(1, (max - min) / (n - 1));
+        int count = (max - min) / size + 1;
+        int[] bucketMin = new int[count];
+        int[] bucketMax = new int[count];
+        Arrays.fill(bucketMin, Integer.MAX_VALUE);
+        Arrays.fill(bucketMax, Integer.MIN_VALUE);
+        for (int x : nums) {
+            int idx = (x - min) / size;
+            bucketMin[idx] = Math.min(bucketMin[idx], x);
+            bucketMax[idx] = Math.max(bucketMax[idx], x);
+        }
+        int ans = 0, prev = min;
+        for (int i = 0; i < count; i++) {
+            if (bucketMin[i] == Integer.MAX_VALUE) continue;
+            ans = Math.max(ans, bucketMin[i] - prev);
+            prev = bucketMax[i];
+        }
+        return ans;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- `Arrays.fill` 初始化桶；鸽巢原理保证线性桶方案可找到最大相邻差。
 
 ---
 
@@ -574,6 +1340,60 @@ version1 有更少的修订号，每个缺失的修订号按 "0" 处理。
  `version1`  和  `version2`  都是  **有效版本号**
  `version1`  和  `version2`  的所有修订号都可以存储在  **32 位整数**  中
 
+### Java 解法补充
+
+#### 基础解法：`split("\\.")` 切分版本段
+
+算法思想：`split("\\.")` 切分版本段，逐段转整数比较。
+
+
+```java
+class Solution {
+    public int compareVersion(String version1, String version2) {
+        String[] a = version1.split("\\.");
+        String[] b = version2.split("\\.");
+        int n = Math.max(a.length, b.length);
+        for (int i = 0; i < n; i++) {
+            int x = i < a.length ? Integer.parseInt(a[i]) : 0;
+            int y = i < b.length ? Integer.parseInt(b[i]) : 0;
+            if (x != y) return x < y ? -1 : 1;
+        }
+        return 0;
+    }
+}
+```
+
+
+#### 资深解法：双指针逐字符解析数字段
+
+算法思想：双指针逐字符解析数字段，可避免创建数组；本题段值范围可用 `int`。
+
+```java
+class Solution {
+    public int compareVersion(String version1, String version2) {
+        int i = 0, j = 0;
+        while (i < version1.length() || j < version2.length()) {
+            int x = 0;
+            while (i < version1.length() && version1.charAt(i) != '.') {
+                x = x * 10 + (version1.charAt(i++) - '0');
+            }
+            int y = 0;
+            while (j < version2.length() && version2.charAt(j) != '.') {
+                y = y * 10 + (version2.charAt(j++) - '0');
+            }
+            if (x != y) return x < y ? -1 : 1;
+            i++;
+            j++;
+        }
+        return 0;
+    }
+}
+```
+
+#### 基础语法与算法思想
+
+- 正则中点号需要写成 `"\\."`；版本比较忽略前导零和缺失尾段零。
+
 ---
 
 ## 166. 分数到小数 (Medium)
@@ -610,6 +1430,82 @@ version1 有更少的修订号，每个缺失的修订号按 "0" 处理。
 
  `-231 <= numerator, denominator <= 231 - 1`
  `denominator != 0`
+
+### Java 解法补充
+
+#### 基础解法：模拟长除法
+
+算法思想：模拟长除法，把每次余数映射到小数位置；重复余数代表循环节开始。
+
+
+```java
+class Solution {
+    public String fractionToDecimal(int numerator, int denominator) {
+        if (numerator == 0) return "0";
+        StringBuilder ans = new StringBuilder();
+        if ((numerator < 0) ^ (denominator < 0)) ans.append('-');
+        long num = Math.abs((long) numerator);
+        long den = Math.abs((long) denominator);
+        ans.append(num / den);
+        long rem = num % den;
+        if (rem == 0) return ans.toString();
+        ans.append('.');
+        Map<Long, Integer> seen = new HashMap<>();
+        while (rem != 0) {
+            if (seen.containsKey(rem)) {
+                ans.insert(seen.get(rem).intValue(), "(");
+                ans.append(')');
+                break;
+            }
+            seen.put(rem, ans.length());
+            rem *= 10;
+            ans.append(rem / den);
+            rem %= den;
+        }
+        return ans.toString();
+    }
+}
+```
+
+
+#### 资深解法：用 `long` 处理 `Integer.MIN_VALUE` 的绝对值
+
+算法思想：用 `long` 处理 `Integer.MIN_VALUE` 的绝对值，避免 `Math.abs(int)` 溢出。
+
+```java
+class Solution {
+    public String fractionToDecimal(int numerator, int denominator) {
+        if (numerator == 0) return "0";
+        StringBuilder ans = new StringBuilder();
+        if ((numerator < 0) ^ (denominator < 0)) ans.append('-');
+
+        long num = Math.abs((long) numerator);
+        long den = Math.abs((long) denominator);
+        ans.append(num / den);
+        long rem = num % den;
+        if (rem == 0) return ans.toString();
+
+        ans.append('.');
+        java.util.Map<Long, Integer> pos = new java.util.HashMap<>();
+        while (rem != 0) {
+            if (pos.containsKey(rem)) {
+                ans.insert(pos.get(rem), "(");
+                ans.append(')');
+                break;
+            }
+            pos.put(rem, ans.length());
+            rem *= 10;
+            ans.append(rem / den);
+            rem %= den;
+        }
+        return ans.toString();
+    }
+}
+```
+
+#### 基础语法与算法思想
+
+- `StringBuilder.insert` 可在循环节起点插入括号；核心是余数状态有限。
 
 ---
 
@@ -653,6 +1549,57 @@ version1 有更少的修订号，每个缺失的修订号按 "0" 处理。
  `numbers`  按  **非递减顺序**  排列
  `-1000 <= target <= 1000`
  **仅存在一个有效答案**
+
+### Java 解法补充
+
+#### 基础解法：固定一个数后二分查找另一个数
+
+算法思想：固定一个数后二分查找另一个数，时间 `O(n log n)`。
+
+```java
+class Solution {
+    public int[] twoSum(int[] numbers, int target) {
+        for (int i = 0; i < numbers.length; i++) {
+            int need = target - numbers[i];
+            int left = i + 1, right = numbers.length - 1;
+            while (left <= right) {
+                int mid = left + (right - left) / 2;
+                if (numbers[mid] == need) return new int[]{i + 1, mid + 1};
+                if (numbers[mid] < need) left = mid + 1;
+                else right = mid - 1;
+            }
+        }
+        return new int[0];
+    }
+}
+```
+
+
+
+#### 资深解法：有序数组双指针
+
+算法思想：有序数组双指针，小了左移，大了右移。
+
+
+```java
+class Solution {
+    public int[] twoSum(int[] numbers, int target) {
+        int left = 0, right = numbers.length - 1;
+        while (left < right) {
+            int sum = numbers[left] + numbers[right];
+            if (sum == target) return new int[]{left + 1, right + 1};
+            if (sum < target) left++;
+            else right--;
+        }
+        return new int[0];
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 返回下标从 1 开始；双指针利用排序性质，时间 `O(n)`。
 
 ---
 
@@ -706,6 +1653,51 @@ AB -> 28
 
  `1 <= columnNumber <= 231 - 1`
 
+### Java 解法补充
+
+#### 基础解法：类似进制转换
+
+算法思想：类似进制转换，但 Excel 是 1 到 26 的映射，需要先 `columnNumber--` 再取模。
+
+
+```java
+class Solution {
+    public String convertToTitle(int columnNumber) {
+        StringBuilder ans = new StringBuilder();
+        while (columnNumber > 0) {
+            columnNumber--;
+            ans.append((char) ('A' + columnNumber % 26));
+            columnNumber /= 26;
+        }
+        return ans.reverse().toString();
+    }
+}
+```
+
+
+#### 资深解法：先减一把 1-indexed 转为 0-indexed
+
+算法思想：先减一把 1-indexed 转为 0-indexed，避免 `Z` 对应余数 0 的特殊分支。
+
+```java
+class Solution {
+    public String convertToTitle(int columnNumber) {
+        char[] buffer = new char[8];
+        int pos = buffer.length;
+        while (columnNumber > 0) {
+            columnNumber--;
+            buffer[--pos] = (char) ('A' + columnNumber % 26);
+            columnNumber /= 26;
+        }
+        return new String(buffer, pos, buffer.length - pos);
+    }
+}
+```
+
+#### 基础语法与算法思想
+
+- `(char)('A' + k)` 把数字转字母；字符串从低位生成，最后反转。
+
 ---
 
 ## 169. 多数元素 (Easy)
@@ -737,6 +1729,51 @@ AB -> 28
 
 
  **进阶：** 尝试设计时间复杂度为 O(n)、空间复杂度为 O(1) 的算法解决此问题。
+
+### Java 解法补充
+
+#### 基础解法：哈希表计数
+
+算法思想：哈希表计数，某个数次数超过 `n/2` 即返回。
+
+```java
+class Solution {
+    public int majorityElement(int[] nums) {
+        java.util.Map<Integer, Integer> count = new java.util.HashMap<>();
+        for (int x : nums) {
+            int c = count.getOrDefault(x, 0) + 1;
+            if (c > nums.length / 2) return x;
+            count.put(x, c);
+        }
+        return nums[0];
+    }
+}
+```
+
+
+
+#### 资深解法：Boyer-Moore 投票法
+
+算法思想：Boyer-Moore 投票法，候选数与其他数抵消，最后剩下的一定是多数元素。
+
+
+```java
+class Solution {
+    public int majorityElement(int[] nums) {
+        int candidate = 0, vote = 0;
+        for (int x : nums) {
+            if (vote == 0) candidate = x;
+            vote += x == candidate ? 1 : -1;
+        }
+        return candidate;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 三元表达式更新票数；题目保证多数元素存在，故无需二次验证。
 
 ---
 
@@ -771,6 +1808,62 @@ twoSum.find(7); // 不存在两个数之和为 7，返回 false
 ```
 
 题面补充来源：LeetCode Wiki，核对日期：2026-05-15。
+
+### Java 解法补充
+
+#### 基础解法：保存所有数字
+
+算法思想：保存所有数字，`find` 时双重循环找和，`add O(1)`、`find O(n^2)`。
+
+```java
+class TwoSum {
+    private java.util.List<Integer> nums = new java.util.ArrayList<>();
+
+    public void add(int number) {
+        nums.add(number);
+    }
+
+    public boolean find(int value) {
+        for (int i = 0; i < nums.size(); i++) {
+            for (int j = i + 1; j < nums.size(); j++) {
+                if (nums.get(i) + nums.get(j) == value) return true;
+            }
+        }
+        return false;
+    }
+}
+```
+
+
+
+#### 资深解法：哈希表保存数字频次；`find` 枚举一个数并检查补数是否存在
+
+算法思想：哈希表保存数字频次；`find` 枚举一个数并检查补数是否存在。
+
+
+```java
+class TwoSum {
+    private Map<Integer, Integer> count = new HashMap<>();
+
+    public void add(int number) {
+        count.put(number, count.getOrDefault(number, 0) + 1);
+    }
+
+    public boolean find(int value) {
+        for (int x : count.keySet()) {
+            int y = value - x;
+            if (y != x && count.containsKey(y)) return true;
+            if (y == x && count.get(x) > 1) return true;
+        }
+        return false;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 频次表能处理两个相同数相加的情况；设计题要明确各操作的时间复杂度。
 
 ---
 
@@ -819,6 +1912,46 @@ AB -> 28
  `columnTitle`  仅由大写英文组成
  `columnTitle`  在范围  `["A", "FXSHRXW"]`  内
 
+### Java 解法补充
+
+#### 基础解法：从左到右按 26 进制累加
+
+算法思想：从左到右按 26 进制累加。
+
+
+```java
+class Solution {
+    public int titleToNumber(String columnTitle) {
+        int ans = 0;
+        for (int i = 0; i < columnTitle.length(); i++) {
+            ans = ans * 26 + (columnTitle.charAt(i) - 'A' + 1);
+        }
+        return ans;
+    }
+}
+```
+
+
+#### 资深解法：与 168 互为逆过程；每读一个字符就把已有高位左移一位 26 进制
+
+算法思想：与 168 互为逆过程；每读一个字符就把已有高位左移一位 26 进制。
+
+```java
+class Solution {
+    public int titleToNumber(String columnTitle) {
+        int ans = 0;
+        for (char c : columnTitle.toCharArray()) {
+            ans = ans * 26 + c - 'A' + 1;
+        }
+        return ans;
+    }
+}
+```
+
+#### 基础语法与算法思想
+
+- 字符相减得到字母序号；时间 `O(n)`。
+
 ---
 
 ## 172. 阶乘后的零 (Medium)
@@ -856,6 +1989,53 @@ AB -> 28
 
 
  **进阶：** 你可以设计并实现对数时间复杂度的算法来解决此问题吗？
+
+### Java 解法补充
+
+#### 基础解法：逐个数统计因子 5
+
+算法思想：不直接计算阶乘，而是遍历每个 5 的倍数，统计它能贡献多少个因子 5。
+
+```java
+class Solution {
+    public int trailingZeroes(int n) {
+        int ans = 0;
+        for (int x = 5; x <= n; x += 5) {
+            int cur = x;
+            while (cur % 5 == 0) {
+                ans++;
+                cur /= 5;
+            }
+        }
+        return ans;
+    }
+}
+```
+
+
+
+#### 资深解法：末尾零由因子 `2 * 5` 产生
+
+算法思想：末尾零由因子 `2 * 5` 产生，2 的数量远多于 5，只需统计 5 的因子数量。
+
+
+```java
+class Solution {
+    public int trailingZeroes(int n) {
+        int ans = 0;
+        while (n > 0) {
+            n /= 5;
+            ans += n;
+        }
+        return ans;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- `25、125` 等贡献多个 5，所以循环不断除以 5。时间 `O(log n)`。
 
 ---
 
@@ -905,6 +2085,77 @@ bSTIterator.hasNext(); // 返回 False
 
 你可以设计一个满足下述条件的解决方案吗？ `next()`  和  `hasNext()`  操作均摊时间复杂度为  `O(1)`  ，并使用  `O(h)`  内存。其中  `h`  是树的高度。
 
+### Java 解法补充
+
+#### 基础解法：中序遍历整棵树存入列表
+
+算法思想：中序遍历整棵树存入列表，`next` 按下标返回。
+
+```java
+class BSTIterator {
+    private java.util.List<Integer> values = new java.util.ArrayList<>();
+    private int index = 0;
+
+    public BSTIterator(TreeNode root) {
+        inorder(root);
+    }
+
+    public int next() {
+        return values.get(index++);
+    }
+
+    public boolean hasNext() {
+        return index < values.size();
+    }
+
+    private void inorder(TreeNode node) {
+        if (node == null) return;
+        inorder(node.left);
+        values.add(node.val);
+        inorder(node.right);
+    }
+}
+```
+
+
+
+#### 资深解法：栈模拟中序遍历
+
+算法思想：栈模拟中序遍历，只保存当前路径，均摊 `O(1)` 获取下一个最小值。
+
+
+```java
+class BSTIterator {
+    private Deque<TreeNode> stack = new ArrayDeque<>();
+
+    public BSTIterator(TreeNode root) {
+        pushLeft(root);
+    }
+
+    public int next() {
+        TreeNode node = stack.pop();
+        pushLeft(node.right);
+        return node.val;
+    }
+
+    public boolean hasNext() {
+        return !stack.isEmpty();
+    }
+
+    private void pushLeft(TreeNode node) {
+        while (node != null) {
+            stack.push(node);
+            node = node.left;
+        }
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- BST 中序遍历递增；把递归调用栈显式化，就是迭代器的核心。
+
 ---
 
 ## 174. 地下城游戏 (Hard)
@@ -938,6 +2189,81 @@ bSTIterator.hasNext(); // 返回 False
  `n == dungeon[i].length`
  `1 <= m, n <= 200`
  `-1000 <= dungeon[i][j] <= 1000`
+
+### Java 解法补充
+
+#### 基础解法：二分初始血量并正向模拟
+
+算法思想：猜一个初始血量，用正向 DP 保留到达每个格子时的最高剩余血量；如果能到终点，再二分降低初始血量。
+
+```java
+class Solution {
+    public int calculateMinimumHP(int[][] dungeon) {
+        int left = 1, right = 1_000_001;
+        while (left < right) {
+            int mid = left + (right - left) / 2;
+            if (canReach(dungeon, mid)) right = mid;
+            else left = mid + 1;
+        }
+        return left;
+    }
+
+    private boolean canReach(int[][] dungeon, int hp) {
+        int m = dungeon.length, n = dungeon[0].length;
+        int[][] best = new int[m][n];
+        for (int[] row : best) java.util.Arrays.fill(row, -1);
+
+        best[0][0] = hp + dungeon[0][0];
+        if (best[0][0] <= 0) return false;
+
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j < n; j++) {
+                if (best[i][j] <= 0) continue;
+                if (i + 1 < m) {
+                    int next = best[i][j] + dungeon[i + 1][j];
+                    if (next > 0) best[i + 1][j] = Math.max(best[i + 1][j], next);
+                }
+                if (j + 1 < n) {
+                    int next = best[i][j] + dungeon[i][j + 1];
+                    if (next > 0) best[i][j + 1] = Math.max(best[i][j + 1], next);
+                }
+            }
+        }
+        return best[m - 1][n - 1] > 0;
+    }
+}
+```
+
+
+
+#### 资深解法：反向 DP：`dp[i][j]` 表示进入该格前至少需要多少生命值
+
+算法思想：反向 DP：`dp[i][j]` 表示进入该格前至少需要多少生命值。
+
+
+```java
+class Solution {
+    public int calculateMinimumHP(int[][] dungeon) {
+        int m = dungeon.length, n = dungeon[0].length;
+        int[][] dp = new int[m + 1][n + 1];
+        for (int[] row : dp) Arrays.fill(row, Integer.MAX_VALUE / 2);
+        dp[m][n - 1] = 1;
+        dp[m - 1][n] = 1;
+        for (int i = m - 1; i >= 0; i--) {
+            for (int j = n - 1; j >= 0; j--) {
+                int need = Math.min(dp[i + 1][j], dp[i][j + 1]) - dungeon[i][j];
+                dp[i][j] = Math.max(1, need);
+            }
+        }
+        return dp[0][0];
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 使用哨兵边界简化终点处理；生命值最低为 1，不能降到 0。
 
 ---
 
@@ -1008,6 +2334,30 @@ Address表:
 addressId = 1 包含了 personId = 2 的地址信息。
 ```
 
+### SQL/Shell 解法补充
+#### 基础解法：左连接保留所有 Person
+
+算法思想：左连接保留所有 Person，即使没有地址也返回 `null`。
+
+
+```sql
+SELECT p.firstName, p.lastName, a.city, a.state
+FROM Person p
+LEFT JOIN Address a ON p.personId = a.personId;
+```
+
+
+#### 资深解法：数据库题不使用 Java 提交；核心语法是 `LEFT JOIN ... ON ...`
+
+算法思想：数据库题不使用 Java 提交；核心语法是 `LEFT JOIN ... ON ...`，它表达“主表全保留，匹配表尽量补充”。
+
+```sql
+SELECT p.firstName, p.lastName, a.city, a.state
+FROM Person AS p
+LEFT JOIN Address AS a
+    ON p.personId = a.personId;
+```
+
 ---
 
 ## 176. 第二高的薪水 (Medium)
@@ -1065,6 +2415,35 @@ Employee 表：
 +---------------------+
 | null                |
 +---------------------+
+```
+
+### SQL/Shell 解法补充
+#### 基础解法：去重排序后取第二条；外层子查询保证没有第二高薪水时返回 `null`
+
+算法思想：去重排序后取第二条；外层子查询保证没有第二高薪水时返回 `null`。
+
+
+```sql
+SELECT (
+    SELECT DISTINCT salary
+    FROM Employee
+    ORDER BY salary DESC
+    LIMIT 1 OFFSET 1
+) AS SecondHighestSalary;
+```
+
+
+#### 资深解法：`DISTINCT` 去掉重复薪水
+
+算法思想：`DISTINCT` 去掉重复薪水，`OFFSET 1` 跳过最高薪水；这是“排名后取第 N 个值”的基础模板。
+
+```sql
+SELECT MAX(salary) AS SecondHighestSalary
+FROM Employee
+WHERE salary < (
+    SELECT MAX(salary)
+    FROM Employee
+);
 ```
 
 ---
@@ -1128,6 +2507,50 @@ n = 2
 +------------------------+
 ```
 
+### SQL/Shell 解法补充
+#### 基础解法：与 176 一样先去重降序
+
+算法思想：与 176 一样先去重降序，再跳过 `N - 1` 条。
+
+
+```sql
+CREATE FUNCTION getNthHighestSalary(N INT) RETURNS INT
+BEGIN
+    SET N = N - 1;
+    RETURN (
+        SELECT DISTINCT salary
+        FROM Employee
+        ORDER BY salary DESC
+        LIMIT 1 OFFSET N
+    );
+END
+```
+
+
+#### 资深解法：窗口函数版本可用 `DENSE_RANK()` 计算薪水排名
+
+算法思想：窗口函数版本可用 `DENSE_RANK()` 计算薪水排名，再筛选第 `N` 名。
+
+```sql
+CREATE FUNCTION getNthHighestSalary(N INT) RETURNS INT
+BEGIN
+    RETURN (
+        SELECT salary
+        FROM (
+            SELECT salary,
+                   DENSE_RANK() OVER (ORDER BY salary DESC) AS rk
+            FROM Employee
+            GROUP BY salary
+        ) ranked
+        WHERE rk = N
+    );
+END
+```
+
+#### 基础语法与算法思想
+
+- `LIMIT 1 OFFSET k` 取排序后的第 `k+1` 条；函数题要注意返回单个标量。
+
 ---
 
 ## 178. 分数排名 (Medium)
@@ -1183,6 +2606,40 @@ Scores 表:
 +-------+------+
 ```
 
+### SQL/Shell 解法补充
+#### 基础解法：对每条分数统计有多少个不同分数比它高
+
+算法思想：对每条分数统计有多少个不同分数比它高，排名为数量加一。
+
+```sql
+SELECT s.score,
+       (
+           SELECT COUNT(DISTINCT s2.score)
+           FROM Scores s2
+           WHERE s2.score >= s.score
+       ) AS `rank`
+FROM Scores s
+ORDER BY s.score DESC;
+```
+
+
+
+#### 资深解法：使用窗口函数 `DENSE_RANK`
+
+算法思想：使用窗口函数 `DENSE_RANK`，并按题目要求把列名命名为 `rank`。
+
+
+```sql
+SELECT score, DENSE_RANK() OVER (ORDER BY score DESC) AS `rank`
+FROM Scores
+ORDER BY score DESC;
+```
+
+
+#### 基础语法与算法思想
+
+- `DENSE_RANK` 不跳号，适合“并列后下一名连续”的排名定义。
+
 ---
 
 ## 179. 最大数 (Medium)
@@ -1209,6 +2666,62 @@ Scores 表:
 
  `1 <= nums.length <= 100`
  `0 <= nums[i] <= 109`
+
+### Java 解法补充
+
+#### 基础解法：手写插入排序比较拼接结果
+
+算法思想：把数字转成字符串后手写插入排序，两个字符串 `a`、`b` 的顺序由 `a+b` 和 `b+a` 哪个更大决定。
+
+```java
+class Solution {
+    public String largestNumber(int[] nums) {
+        String[] arr = new String[nums.length];
+        for (int i = 0; i < nums.length; i++) arr[i] = String.valueOf(nums[i]);
+
+        for (int i = 1; i < arr.length; i++) {
+            String cur = arr[i];
+            int j = i - 1;
+            while (j >= 0 && (cur + arr[j]).compareTo(arr[j] + cur) > 0) {
+                arr[j + 1] = arr[j];
+                j--;
+            }
+            arr[j + 1] = cur;
+        }
+
+        if (arr[0].equals("0")) return "0";
+        StringBuilder ans = new StringBuilder();
+        for (String s : arr) ans.append(s);
+        return ans.toString();
+    }
+}
+```
+
+
+
+#### 资深解法：把数字转字符串
+
+算法思想：把数字转字符串，按 `(b+a)` 与 `(a+b)` 的字典序降序排序。
+
+
+```java
+class Solution {
+    public String largestNumber(int[] nums) {
+        String[] arr = new String[nums.length];
+        for (int i = 0; i < nums.length; i++) arr[i] = String.valueOf(nums[i]);
+        Arrays.sort(arr, (a, b) -> (b + a).compareTo(a + b));
+        if (arr[0].equals("0")) return "0";
+        StringBuilder ans = new StringBuilder();
+        for (String s : arr) ans.append(s);
+        return ans.toString();
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- `Arrays.sort` 可传 Lambda 比较器；若最大字符串是 `"0"`，说明所有数都是 0。
 
 ---
 
@@ -1258,731 +2771,11 @@ Result 表：
 解释：1 是唯一连续出现至少三次的数字。
 ```
 
----
+### SQL/Shell 解法补充
+#### 基础解法：自连接三次
 
-# Java/SQL 解法补充附录（151-180）
+算法思想：自连接三次，找 `id` 连续且 `num` 相同的记录。
 
-### 151. 反转字符串中的单词
-
-**基础解法：** `trim + split + 反向拼接`，先去掉首尾空格，再按连续空白切分单词。
-
-```java
-class Solution {
-    public String reverseWords(String s) {
-        String[] words = s.trim().split("\\s+");
-        StringBuilder ans = new StringBuilder();
-        for (int i = words.length - 1; i >= 0; i--) {
-            if (ans.length() > 0) ans.append(' ');
-            ans.append(words[i]);
-        }
-        return ans.toString();
-    }
-}
-```
-
-**资深解法：** 若输入是可变字符数组，可整体反转再逐词反转；本题 Java `String` 不可变，实际提交以切分法最简洁。
-**基础语法与思想：** `split("\\s+")` 使用正则匹配连续空白；算法核心是“单词级别反转”，时间 `O(n)`，空间 `O(n)`。
-
-### 152. 乘积最大子数组
-
-**基础解法：** 暴力枚举每个起点并持续累乘，维护最大值，时间 `O(n^2)`。
-
-**资深解法：** 动态规划同时维护以当前位置结尾的最大积和最小积；遇到负数时最大/最小会互换。
-
-```java
-class Solution {
-    public int maxProduct(int[] nums) {
-        int max = nums[0], min = nums[0], ans = nums[0];
-        for (int i = 1; i < nums.length; i++) {
-            int x = nums[i];
-            if (x < 0) {
-                int t = max;
-                max = min;
-                min = t;
-            }
-            max = Math.max(x, max * x);
-            min = Math.min(x, min * x);
-            ans = Math.max(ans, max);
-        }
-        return ans;
-    }
-}
-```
-
-**基础语法与思想：** `Math.max/min` 滚动更新状态；负数会改变乘积符号，所以要保留最小积。时间 `O(n)`，空间 `O(1)`。
-
-### 153. 寻找旋转排序数组中的最小值
-
-**基础解法：** 线性扫描找到第一个下降点或全局最小值，时间 `O(n)`。
-
-**资深解法：** 二分比较 `nums[mid]` 与 `nums[right]`；右侧有序且 `mid` 更大时最小值在右边，否则在左边含 `mid`。
-
-```java
-class Solution {
-    public int findMin(int[] nums) {
-        int left = 0, right = nums.length - 1;
-        while (left < right) {
-            int mid = left + (right - left) / 2;
-            if (nums[mid] > nums[right]) left = mid + 1;
-            else right = mid;
-        }
-        return nums[left];
-    }
-}
-```
-
-**基础语法与思想：** 二分循环条件用 `left < right`，收敛后 `left` 即答案；无重复元素时判断明确，时间 `O(log n)`。
-
-### 154. 寻找旋转排序数组中的最小值 II
-
-**基础解法：** 直接遍历求最小值，时间 `O(n)`。
-
-**资深解法：** 含重复元素时仍二分；当 `nums[mid] == nums[right]` 无法判断方向，只能安全地 `right--`。
-
-```java
-class Solution {
-    public int findMin(int[] nums) {
-        int left = 0, right = nums.length - 1;
-        while (left < right) {
-            int mid = left + (right - left) / 2;
-            if (nums[mid] > nums[right]) left = mid + 1;
-            else if (nums[mid] < nums[right]) right = mid;
-            else right--;
-        }
-        return nums[left];
-    }
-}
-```
-
-**基础语法与思想：** `right--` 不会丢失唯一最小值，因为 `nums[mid] == nums[right]` 时右端点可被同值替代；最坏时间 `O(n)`，平均接近 `O(log n)`。
-
-### 155. 最小栈
-
-**基础解法：** 普通栈保存元素，`getMin` 时遍历栈求最小值，查询 `O(n)`。
-
-**资深解法：** 双栈：数据栈保存所有值，最小栈同步保存当前位置的最小值。
-
-```java
-class MinStack {
-    private Deque<Integer> stack = new ArrayDeque<>();
-    private Deque<Integer> mins = new ArrayDeque<>();
-
-    public void push(int val) {
-        stack.push(val);
-        mins.push(mins.isEmpty() ? val : Math.min(val, mins.peek()));
-    }
-
-    public void pop() {
-        stack.pop();
-        mins.pop();
-    }
-
-    public int top() {
-        return stack.peek();
-    }
-
-    public int getMin() {
-        return mins.peek();
-    }
-}
-```
-
-**基础语法与思想：** `Deque` 的 `push/pop/peek` 可当栈用；用空间换 `getMin` 的 `O(1)` 查询。
-
-### 156. 上下翻转二叉树
-
-**基础解法：** 递归到底部最左节点作为新根，回溯时重连当前节点、左子节点、右子节点。
-
-```java
-class Solution {
-    public TreeNode upsideDownBinaryTree(TreeNode root) {
-        if (root == null || root.left == null) return root;
-        TreeNode newRoot = upsideDownBinaryTree(root.left);
-        root.left.left = root.right;
-        root.left.right = root;
-        root.left = null;
-        root.right = null;
-        return newRoot;
-    }
-}
-```
-
-**资深解法：** 迭代维护 `parent` 与原右子树，沿左链向下翻转，空间 `O(1)`。
-
-```java
-class Solution {
-    public TreeNode upsideDownBinaryTree(TreeNode root) {
-        TreeNode parent = null, parentRight = null;
-        while (root != null) {
-            TreeNode next = root.left;
-            root.left = parentRight;
-            parentRight = root.right;
-            root.right = parent;
-            parent = root;
-            root = next;
-        }
-        return parent;
-    }
-}
-```
-
-**基础语法与思想：** 重连指针前必须先保存 `next`；树形翻转本质是把左链改造成新右链。
-
-### 157. 用 Read4 读取 N 个字符
-
-**基础解法：** 每次调用 `read4` 读取最多 4 个字符，再拷贝到目标缓冲区，直到读够或文件结束。
-
-```java
-public class Solution extends Reader4 {
-    public int read(char[] buf, int n) {
-        char[] tmp = new char[4];
-        int total = 0;
-        while (total < n) {
-            int cnt = read4(tmp);
-            if (cnt == 0) break;
-            for (int i = 0; i < cnt && total < n; i++) {
-                buf[total++] = tmp[i];
-            }
-        }
-        return total;
-    }
-}
-```
-
-**资深解法：** 单次调用场景不需要跨调用缓存；关键是最后一批可能读到超过 `n` 的字符，只复制需要的部分。
-**基础语法与思想：** `char[]` 是可变缓冲区；`read4` 返回实际读取量，返回 0 表示文件结束。
-
-### 158. 用 Read4 读取 N 个字符 II - 多次调用
-
-**基础解法：** 每次都调用 `read4` 会丢失上次多读的字符，不能通过多次调用测试。
-
-**资深解法：** 对象字段保存 `read4` 的剩余字符，多次 `read` 共享这段缓存。
-
-```java
-public class Solution extends Reader4 {
-    private char[] cache = new char[4];
-    private int size = 0;
-    private int index = 0;
-
-    public int read(char[] buf, int n) {
-        int total = 0;
-        while (total < n) {
-            if (index == size) {
-                size = read4(cache);
-                index = 0;
-                if (size == 0) break;
-            }
-            while (total < n && index < size) {
-                buf[total++] = cache[index++];
-            }
-        }
-        return total;
-    }
-}
-```
-
-**基础语法与思想：** 类成员变量跨方法调用保留状态；这是“流式读取”的典型缓存设计。
-
-### 159. 至多包含两个不同字符的最长子串
-
-**基础解法：** 枚举左端点，向右扩展并用集合统计不同字符，超过 2 个停止，时间 `O(n^2)`。
-
-**资深解法：** 滑动窗口维护字符频次，窗口中不同字符超过 2 时移动左端点。
-
-```java
-class Solution {
-    public int lengthOfLongestSubstringTwoDistinct(String s) {
-        Map<Character, Integer> count = new HashMap<>();
-        int left = 0, ans = 0;
-        for (int right = 0; right < s.length(); right++) {
-            char c = s.charAt(right);
-            count.put(c, count.getOrDefault(c, 0) + 1);
-            while (count.size() > 2) {
-                char d = s.charAt(left++);
-                count.put(d, count.get(d) - 1);
-                if (count.get(d) == 0) count.remove(d);
-            }
-            ans = Math.max(ans, right - left + 1);
-        }
-        return ans;
-    }
-}
-```
-
-**基础语法与思想：** `getOrDefault` 简化计数；窗口满足约束时更新答案，不满足时收缩。
-
-### 160. 相交链表
-
-**基础解法：** 用 `HashSet` 保存链表 A 的节点引用，再扫描 B 找第一个已出现节点。
-
-**资深解法：** 双指针走完自己的链表后切到另一条链表，长度差会被第二段抵消，最终在交点或 `null` 相遇。
-
-```java
-public class Solution {
-    public ListNode getIntersectionNode(ListNode headA, ListNode headB) {
-        ListNode a = headA, b = headB;
-        while (a != b) {
-            a = a == null ? headB : a.next;
-            b = b == null ? headA : b.next;
-        }
-        return a;
-    }
-}
-```
-
-**基础语法与思想：** 比较节点是否相交要用引用相等 `a == b`，不是比较节点值。时间 `O(m+n)`，空间 `O(1)`。
-
-### 161. 相隔为 1 的编辑距离
-
-**基础解法：** 递归/DP 判断编辑距离是否为 1，较重但直观。
-
-**资深解法：** 双指针扫描，第一次不同后根据长度关系跳过一个字符或同时跳过。
-
-```java
-class Solution {
-    public boolean isOneEditDistance(String s, String t) {
-        int m = s.length(), n = t.length();
-        if (Math.abs(m - n) > 1) return false;
-        for (int i = 0; i < Math.min(m, n); i++) {
-            if (s.charAt(i) != t.charAt(i)) {
-                if (m == n) return s.substring(i + 1).equals(t.substring(i + 1));
-                if (m < n) return s.substring(i).equals(t.substring(i + 1));
-                return s.substring(i + 1).equals(t.substring(i));
-            }
-        }
-        return Math.abs(m - n) == 1;
-    }
-}
-```
-
-**基础语法与思想：** `substring` 比较剩余后缀；必须排除完全相同的字符串，因为题目要求“恰好一次编辑”。
-
-### 162. 寻找峰值
-
-**基础解法：** 扫描数组，找到第一个大于左右相邻元素的位置。
-
-**资深解法：** 二分坡度：若 `nums[mid] < nums[mid + 1]`，右侧一定存在峰值；否则左侧含 `mid` 存在峰值。
-
-```java
-class Solution {
-    public int findPeakElement(int[] nums) {
-        int left = 0, right = nums.length - 1;
-        while (left < right) {
-            int mid = left + (right - left) / 2;
-            if (nums[mid] < nums[mid + 1]) left = mid + 1;
-            else right = mid;
-        }
-        return left;
-    }
-}
-```
-
-**基础语法与思想：** 循环中访问 `mid + 1`，所以条件必须是 `left < right`；峰值可不唯一，返回任一即可。
-
-### 163. 缺失的区间
-
-**基础解法：** 在首尾加哨兵，逐段检查相邻数字之间是否有空缺。
-
-```java
-class Solution {
-    public List<List<Integer>> findMissingRanges(int[] nums, int lower, int upper) {
-        List<List<Integer>> ans = new ArrayList<>();
-        long prev = (long) lower - 1;
-        for (int i = 0; i <= nums.length; i++) {
-            long cur = i == nums.length ? (long) upper + 1 : nums[i];
-            if (cur - prev >= 2) {
-                ans.add(Arrays.asList((int) (prev + 1), (int) (cur - 1)));
-            }
-            prev = cur;
-        }
-        return ans;
-    }
-}
-```
-
-**资深解法：** 使用 `long` 做哨兵，避免 `lower - 1` 或 `upper + 1` 在整数边界溢出。
-**基础语法与思想：** `Arrays.asList(a, b)` 生成闭区间；思想是检查两个已存在边界之间的空档。
-
-### 164. 最大间距
-
-**基础解法：** 排序后扫描相邻差值，时间 `O(n log n)`。
-
-**资深解法：** 桶排序思想。若最大间距存在，一定出现在非空桶之间；桶内最大差不会超过桶宽。
-
-```java
-class Solution {
-    public int maximumGap(int[] nums) {
-        int n = nums.length;
-        if (n < 2) return 0;
-        int min = nums[0], max = nums[0];
-        for (int x : nums) {
-            min = Math.min(min, x);
-            max = Math.max(max, x);
-        }
-        if (min == max) return 0;
-        int size = Math.max(1, (max - min) / (n - 1));
-        int count = (max - min) / size + 1;
-        int[] bucketMin = new int[count];
-        int[] bucketMax = new int[count];
-        Arrays.fill(bucketMin, Integer.MAX_VALUE);
-        Arrays.fill(bucketMax, Integer.MIN_VALUE);
-        for (int x : nums) {
-            int idx = (x - min) / size;
-            bucketMin[idx] = Math.min(bucketMin[idx], x);
-            bucketMax[idx] = Math.max(bucketMax[idx], x);
-        }
-        int ans = 0, prev = min;
-        for (int i = 0; i < count; i++) {
-            if (bucketMin[i] == Integer.MAX_VALUE) continue;
-            ans = Math.max(ans, bucketMin[i] - prev);
-            prev = bucketMax[i];
-        }
-        return ans;
-    }
-}
-```
-
-**基础语法与思想：** `Arrays.fill` 初始化桶；鸽巢原理保证线性桶方案可找到最大相邻差。
-
-### 165. 比较版本号
-
-**基础解法：** `split("\\.")` 切分版本段，逐段转整数比较。
-
-```java
-class Solution {
-    public int compareVersion(String version1, String version2) {
-        String[] a = version1.split("\\.");
-        String[] b = version2.split("\\.");
-        int n = Math.max(a.length, b.length);
-        for (int i = 0; i < n; i++) {
-            int x = i < a.length ? Integer.parseInt(a[i]) : 0;
-            int y = i < b.length ? Integer.parseInt(b[i]) : 0;
-            if (x != y) return x < y ? -1 : 1;
-        }
-        return 0;
-    }
-}
-```
-
-**资深解法：** 双指针逐字符解析数字段，可避免创建数组；本题段值范围可用 `int`。
-**基础语法与思想：** 正则中点号需要写成 `"\\."`；版本比较忽略前导零和缺失尾段零。
-
-### 166. 分数到小数
-
-**基础解法：** 模拟长除法，把每次余数映射到小数位置；重复余数代表循环节开始。
-
-```java
-class Solution {
-    public String fractionToDecimal(int numerator, int denominator) {
-        if (numerator == 0) return "0";
-        StringBuilder ans = new StringBuilder();
-        if ((numerator < 0) ^ (denominator < 0)) ans.append('-');
-        long num = Math.abs((long) numerator);
-        long den = Math.abs((long) denominator);
-        ans.append(num / den);
-        long rem = num % den;
-        if (rem == 0) return ans.toString();
-        ans.append('.');
-        Map<Long, Integer> seen = new HashMap<>();
-        while (rem != 0) {
-            if (seen.containsKey(rem)) {
-                ans.insert(seen.get(rem).intValue(), "(");
-                ans.append(')');
-                break;
-            }
-            seen.put(rem, ans.length());
-            rem *= 10;
-            ans.append(rem / den);
-            rem %= den;
-        }
-        return ans.toString();
-    }
-}
-```
-
-**资深解法：** 用 `long` 处理 `Integer.MIN_VALUE` 的绝对值，避免 `Math.abs(int)` 溢出。
-**基础语法与思想：** `StringBuilder.insert` 可在循环节起点插入括号；核心是余数状态有限。
-
-### 167. 两数之和 II - 输入有序数组
-
-**基础解法：** 固定一个数后二分查找另一个数，时间 `O(n log n)`。
-
-**资深解法：** 有序数组双指针，小了左移，大了右移。
-
-```java
-class Solution {
-    public int[] twoSum(int[] numbers, int target) {
-        int left = 0, right = numbers.length - 1;
-        while (left < right) {
-            int sum = numbers[left] + numbers[right];
-            if (sum == target) return new int[]{left + 1, right + 1};
-            if (sum < target) left++;
-            else right--;
-        }
-        return new int[0];
-    }
-}
-```
-
-**基础语法与思想：** 返回下标从 1 开始；双指针利用排序性质，时间 `O(n)`。
-
-### 168. Excel 表列名称
-
-**基础解法：** 类似进制转换，但 Excel 是 1 到 26 的映射，需要先 `columnNumber--` 再取模。
-
-```java
-class Solution {
-    public String convertToTitle(int columnNumber) {
-        StringBuilder ans = new StringBuilder();
-        while (columnNumber > 0) {
-            columnNumber--;
-            ans.append((char) ('A' + columnNumber % 26));
-            columnNumber /= 26;
-        }
-        return ans.reverse().toString();
-    }
-}
-```
-
-**资深解法：** 先减一把 1-indexed 转为 0-indexed，避免 `Z` 对应余数 0 的特殊分支。
-**基础语法与思想：** `(char)('A' + k)` 把数字转字母；字符串从低位生成，最后反转。
-
-### 169. 多数元素
-
-**基础解法：** 哈希表计数，某个数次数超过 `n/2` 即返回。
-
-**资深解法：** Boyer-Moore 投票法，候选数与其他数抵消，最后剩下的一定是多数元素。
-
-```java
-class Solution {
-    public int majorityElement(int[] nums) {
-        int candidate = 0, vote = 0;
-        for (int x : nums) {
-            if (vote == 0) candidate = x;
-            vote += x == candidate ? 1 : -1;
-        }
-        return candidate;
-    }
-}
-```
-
-**基础语法与思想：** 三元表达式更新票数；题目保证多数元素存在，故无需二次验证。
-
-### 170. 两数之和 III - 数据结构设计
-
-**基础解法：** 保存所有数字，`find` 时双重循环找和，`add O(1)`、`find O(n^2)`。
-
-**资深解法：** 哈希表保存数字频次；`find` 枚举一个数并检查补数是否存在。
-
-```java
-class TwoSum {
-    private Map<Integer, Integer> count = new HashMap<>();
-
-    public void add(int number) {
-        count.put(number, count.getOrDefault(number, 0) + 1);
-    }
-
-    public boolean find(int value) {
-        for (int x : count.keySet()) {
-            int y = value - x;
-            if (y != x && count.containsKey(y)) return true;
-            if (y == x && count.get(x) > 1) return true;
-        }
-        return false;
-    }
-}
-```
-
-**基础语法与思想：** 频次表能处理两个相同数相加的情况；设计题要明确各操作的时间复杂度。
-
-### 171. Excel 表列序号
-
-**基础解法：** 从左到右按 26 进制累加。
-
-```java
-class Solution {
-    public int titleToNumber(String columnTitle) {
-        int ans = 0;
-        for (int i = 0; i < columnTitle.length(); i++) {
-            ans = ans * 26 + (columnTitle.charAt(i) - 'A' + 1);
-        }
-        return ans;
-    }
-}
-```
-
-**资深解法：** 与 168 互为逆过程；每读一个字符就把已有高位左移一位 26 进制。
-**基础语法与思想：** 字符相减得到字母序号；时间 `O(n)`。
-
-### 172. 阶乘后的零
-
-**基础解法：** 计算阶乘再数末尾零不可行，数值会极快溢出。
-
-**资深解法：** 末尾零由因子 `2 * 5` 产生，2 的数量远多于 5，只需统计 5 的因子数量。
-
-```java
-class Solution {
-    public int trailingZeroes(int n) {
-        int ans = 0;
-        while (n > 0) {
-            n /= 5;
-            ans += n;
-        }
-        return ans;
-    }
-}
-```
-
-**基础语法与思想：** `25、125` 等贡献多个 5，所以循环不断除以 5。时间 `O(log n)`。
-
-### 173. 二叉搜索树迭代器
-
-**基础解法：** 中序遍历整棵树存入列表，`next` 按下标返回。
-
-**资深解法：** 栈模拟中序遍历，只保存当前路径，均摊 `O(1)` 获取下一个最小值。
-
-```java
-class BSTIterator {
-    private Deque<TreeNode> stack = new ArrayDeque<>();
-
-    public BSTIterator(TreeNode root) {
-        pushLeft(root);
-    }
-
-    public int next() {
-        TreeNode node = stack.pop();
-        pushLeft(node.right);
-        return node.val;
-    }
-
-    public boolean hasNext() {
-        return !stack.isEmpty();
-    }
-
-    private void pushLeft(TreeNode node) {
-        while (node != null) {
-            stack.push(node);
-            node = node.left;
-        }
-    }
-}
-```
-
-**基础语法与思想：** BST 中序遍历递增；把递归调用栈显式化，就是迭代器的核心。
-
-### 174. 地下城游戏
-
-**基础解法：** 从起点正向 DP 会同时受当前血量与最低血量约束，状态较难。
-
-**资深解法：** 反向 DP：`dp[i][j]` 表示进入该格前至少需要多少生命值。
-
-```java
-class Solution {
-    public int calculateMinimumHP(int[][] dungeon) {
-        int m = dungeon.length, n = dungeon[0].length;
-        int[][] dp = new int[m + 1][n + 1];
-        for (int[] row : dp) Arrays.fill(row, Integer.MAX_VALUE / 2);
-        dp[m][n - 1] = 1;
-        dp[m - 1][n] = 1;
-        for (int i = m - 1; i >= 0; i--) {
-            for (int j = n - 1; j >= 0; j--) {
-                int need = Math.min(dp[i + 1][j], dp[i][j + 1]) - dungeon[i][j];
-                dp[i][j] = Math.max(1, need);
-            }
-        }
-        return dp[0][0];
-    }
-}
-```
-
-**基础语法与思想：** 使用哨兵边界简化终点处理；生命值最低为 1，不能降到 0。
-
-### 175. 组合两个表
-
-**基础解法：** 左连接保留所有 Person，即使没有地址也返回 `null`。
-
-```sql
-SELECT p.firstName, p.lastName, a.city, a.state
-FROM Person p
-LEFT JOIN Address a ON p.personId = a.personId;
-```
-
-**资深解法：** 数据库题不使用 Java 提交；核心语法是 `LEFT JOIN ... ON ...`，它表达“主表全保留，匹配表尽量补充”。
-
-### 176. 第二高的薪水
-
-**基础解法：** 去重排序后取第二条；外层子查询保证没有第二高薪水时返回 `null`。
-
-```sql
-SELECT (
-    SELECT DISTINCT salary
-    FROM Employee
-    ORDER BY salary DESC
-    LIMIT 1 OFFSET 1
-) AS SecondHighestSalary;
-```
-
-**资深解法：** `DISTINCT` 去掉重复薪水，`OFFSET 1` 跳过最高薪水；这是“排名后取第 N 个值”的基础模板。
-
-### 177. 第 N 高的薪水
-
-**基础解法：** 与 176 一样先去重降序，再跳过 `N - 1` 条。
-
-```sql
-CREATE FUNCTION getNthHighestSalary(N INT) RETURNS INT
-BEGIN
-    SET N = N - 1;
-    RETURN (
-        SELECT DISTINCT salary
-        FROM Employee
-        ORDER BY salary DESC
-        LIMIT 1 OFFSET N
-    );
-END
-```
-
-**资深解法：** 窗口函数版本可用 `DENSE_RANK()` 计算薪水排名，再筛选第 `N` 名。
-**基础语法与思想：** `LIMIT 1 OFFSET k` 取排序后的第 `k+1` 条；函数题要注意返回单个标量。
-
-### 178. 分数排名
-
-**基础解法：** 对每条分数统计有多少个不同分数比它高，排名为数量加一。
-
-**资深解法：** 使用窗口函数 `DENSE_RANK`，并按题目要求把列名命名为 `rank`。
-
-```sql
-SELECT score, DENSE_RANK() OVER (ORDER BY score DESC) AS `rank`
-FROM Scores
-ORDER BY score DESC;
-```
-
-**基础语法与思想：** `DENSE_RANK` 不跳号，适合“并列后下一名连续”的排名定义。
-
-### 179. 最大数
-
-**基础解法：** 枚举排序规则较难直观；关键是比较两个数拼接后的大小。
-
-**资深解法：** 把数字转字符串，按 `(b+a)` 与 `(a+b)` 的字典序降序排序。
-
-```java
-class Solution {
-    public String largestNumber(int[] nums) {
-        String[] arr = new String[nums.length];
-        for (int i = 0; i < nums.length; i++) arr[i] = String.valueOf(nums[i]);
-        Arrays.sort(arr, (a, b) -> (b + a).compareTo(a + b));
-        if (arr[0].equals("0")) return "0";
-        StringBuilder ans = new StringBuilder();
-        for (String s : arr) ans.append(s);
-        return ans.toString();
-    }
-}
-```
-
-**基础语法与思想：** `Arrays.sort` 可传 Lambda 比较器；若最大字符串是 `"0"`，说明所有数都是 0。
-
-### 180. 连续出现的数字
-
-**基础解法：** 自连接三次，找 `id` 连续且 `num` 相同的记录。
 
 ```sql
 SELECT DISTINCT l1.num AS ConsecutiveNums
@@ -1992,5 +2785,24 @@ JOIN Logs l3 ON l3.id = l1.id + 2
 WHERE l1.num = l2.num AND l2.num = l3.num;
 ```
 
-**资深解法：** 支持窗口函数时可用 `LAG/LEAD` 比较前后行；自连接版本兼容性好。
-**基础语法与思想：** SQL 的连续性依赖 `id + 1` 关系；`DISTINCT` 去掉重复命中的数字。
+
+#### 资深解法：支持窗口函数时可用 `LAG/LEAD` 比较前后行；自连接版本兼容性好
+
+算法思想：支持窗口函数时可用 `LAG/LEAD` 比较前后行；自连接版本兼容性好。
+
+```sql
+SELECT DISTINCT num AS ConsecutiveNums
+FROM (
+    SELECT num,
+           LAG(num, 1) OVER (ORDER BY id) AS prev_num,
+           LEAD(num, 1) OVER (ORDER BY id) AS next_num
+    FROM Logs
+) t
+WHERE num = prev_num AND num = next_num;
+```
+
+#### 基础语法与算法思想
+
+- SQL 的连续性依赖 `id + 1` 关系；`DISTINCT` 去掉重复命中的数字。
+
+---

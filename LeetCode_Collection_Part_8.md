@@ -1,5 +1,3 @@
-# LeetCode 题目合集 Part 8
-
 ## 211. 添加与搜索单词 - 数据结构设计 (Medium)
 
 请你设计一个数据结构，支持 添加新单词 和 查找字符串是否与任何先前添加的字符串匹配 。
@@ -38,6 +36,84 @@ wordDictionary.search("b.."); // 返回 True
  `search`  中的  `word`  由 '.' 或小写英文字母组成
 最多调用  `104`  次  `addWord`  和  `search`
 
+### Java 解法补充
+
+#### 基础解法：用列表保存单词
+
+算法思想：用列表保存单词，搜索时逐个匹配 `.` 通配符，查询代价高。
+
+```java
+class WordDictionary {
+    private java.util.List<String> words = new java.util.ArrayList<>();
+
+    public void addWord(String word) {
+        words.add(word);
+    }
+
+    public boolean search(String word) {
+        for (String saved : words) {
+            if (saved.length() != word.length()) continue;
+            boolean ok = true;
+            for (int i = 0; i < word.length(); i++) {
+                if (word.charAt(i) != '.' && word.charAt(i) != saved.charAt(i)) {
+                    ok = false;
+                    break;
+                }
+            }
+            if (ok) return true;
+        }
+        return false;
+    }
+}
+```
+
+
+
+#### 资深解法：Trie 加 DFS
+
+算法思想：Trie 加 DFS，普通字符沿对应分支走，`.` 枚举所有子节点。
+
+
+```java
+class WordDictionary {
+    private static class Node {
+        Node[] next = new Node[26];
+        boolean word;
+    }
+    private Node root = new Node();
+
+    public void addWord(String word) {
+        Node cur = root;
+        for (char c : word.toCharArray()) {
+            int i = c - 'a';
+            if (cur.next[i] == null) cur.next[i] = new Node();
+            cur = cur.next[i];
+        }
+        cur.word = true;
+    }
+
+    public boolean search(String word) {
+        return dfs(word, 0, root);
+    }
+
+    private boolean dfs(String word, int i, Node node) {
+        if (node == null) return false;
+        if (i == word.length()) return node.word;
+        char c = word.charAt(i);
+        if (c != '.') return dfs(word, i + 1, node.next[c - 'a']);
+        for (Node child : node.next) {
+            if (dfs(word, i + 1, child)) return true;
+        }
+        return false;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 递归参数携带当前下标和 Trie 节点；通配符搜索是分支 DFS。
+
 ---
 
 ## 212. 单词搜索 II (Hard)
@@ -70,6 +146,102 @@ wordDictionary.search("b.."); // 返回 True
  `1 <= words[i].length <= 10` 
  `words[i]`  由小写英文字母组成
  `words`  中的所有字符串互不相同
+
+### Java 解法补充
+
+#### 基础解法：对每个单词单独在棋盘上 DFS
+
+算法思想：对每个单词单独在棋盘上 DFS，重复搜索大量前缀。
+
+```java
+class Solution {
+    public java.util.List<String> findWords(char[][] board, String[] words) {
+        java.util.List<String> ans = new java.util.ArrayList<>();
+        for (String word : words) {
+            if (exist(board, word)) ans.add(word);
+        }
+        return ans;
+    }
+
+    private boolean exist(char[][] board, String word) {
+        for (int i = 0; i < board.length; i++) {
+            for (int j = 0; j < board[0].length; j++) {
+                if (dfs(board, word, 0, i, j)) return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean dfs(char[][] board, String word, int idx, int r, int c) {
+        if (idx == word.length()) return true;
+        if (r < 0 || r == board.length || c < 0 || c == board[0].length || board[r][c] != word.charAt(idx)) return false;
+        char old = board[r][c];
+        board[r][c] = '#';
+        boolean ok = dfs(board, word, idx + 1, r + 1, c)
+                || dfs(board, word, idx + 1, r - 1, c)
+                || dfs(board, word, idx + 1, r, c + 1)
+                || dfs(board, word, idx + 1, r, c - 1);
+        board[r][c] = old;
+        return ok;
+    }
+}
+```
+
+
+
+#### 资深解法：把所有单词放入 Trie
+
+算法思想：把所有单词放入 Trie，从每个格子出发 DFS，走到单词结尾即收集答案。
+
+
+```java
+class Solution {
+    private static class Node {
+        Node[] next = new Node[26];
+        String word;
+    }
+    private List<String> ans = new ArrayList<>();
+
+    public List<String> findWords(char[][] board, String[] words) {
+        Node root = new Node();
+        for (String w : words) insert(root, w);
+        for (int i = 0; i < board.length; i++) {
+            for (int j = 0; j < board[0].length; j++) dfs(board, i, j, root);
+        }
+        return ans;
+    }
+
+    private void insert(Node root, String word) {
+        Node cur = root;
+        for (char c : word.toCharArray()) {
+            int i = c - 'a';
+            if (cur.next[i] == null) cur.next[i] = new Node();
+            cur = cur.next[i];
+        }
+        cur.word = word;
+    }
+
+    private void dfs(char[][] b, int i, int j, Node node) {
+        if (i < 0 || i == b.length || j < 0 || j == b[0].length || b[i][j] == '#') return;
+        char c = b[i][j];
+        Node next = node.next[c - 'a'];
+        if (next == null) return;
+        if (next.word != null) {
+            ans.add(next.word);
+            next.word = null;
+        }
+        b[i][j] = '#';
+        dfs(b, i + 1, j, next); dfs(b, i - 1, j, next);
+        dfs(b, i, j + 1, next); dfs(b, i, j - 1, next);
+        b[i][j] = c;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 原地标记访问格；Trie 把多个单词的共同前缀合并，减少重复搜索。
 
 ---
 
@@ -108,6 +280,62 @@ wordDictionary.search("b.."); // 返回 True
  `1 <= nums.length <= 100` 
  `0 <= nums[i] <= 1000`
 
+### Java 解法补充
+
+#### 基础解法：环形房屋不能同时抢首尾
+
+算法思想：环形房屋不能同时抢首尾，可拆成“不抢最后一间”和“不抢第一间”两个线性问题。
+
+```java
+class Solution {
+    public int rob(int[] nums) {
+        if (nums.length == 1) return nums[0];
+        return Math.max(robLine(nums, 0, nums.length - 2), robLine(nums, 1, nums.length - 1));
+    }
+
+    private int robLine(int[] nums, int left, int right) {
+        int[] dp = new int[right - left + 2];
+        for (int i = left; i <= right; i++) {
+            int idx = i - left + 1;
+            dp[idx] = Math.max(dp[idx - 1], (idx >= 2 ? dp[idx - 2] : 0) + nums[i]);
+        }
+        return dp[right - left + 1];
+    }
+}
+```
+
+
+
+#### 资深解法：复用 198 的滚动 DP
+
+算法思想：复用 198 的滚动 DP，分别计算 `[0,n-2]` 与 `[1,n-1]`。
+
+
+```java
+class Solution {
+    public int rob(int[] nums) {
+        int n = nums.length;
+        if (n == 1) return nums[0];
+        return Math.max(robLine(nums, 0, n - 2), robLine(nums, 1, n - 1));
+    }
+
+    private int robLine(int[] nums, int l, int r) {
+        int prev2 = 0, prev1 = 0;
+        for (int i = l; i <= r; i++) {
+            int cur = Math.max(prev1, prev2 + nums[i]);
+            prev2 = prev1;
+            prev1 = cur;
+        }
+        return prev1;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 环形约束通过分类拆除；每个线性段只需两个状态。
+
 ---
 
 ## 214. 最短回文串 (Hard)
@@ -133,6 +361,62 @@ wordDictionary.search("b.."); // 返回 True
 
  `0 <= s.length <= 5 * 104` 
  `s`  仅由小写英文字母组成
+
+### Java 解法补充
+
+#### 基础解法：从长到短枚举前缀是否为回文
+
+算法思想：从长到短枚举前缀是否为回文，把剩余后缀反转到前面。
+
+```java
+class Solution {
+    public String shortestPalindrome(String s) {
+        for (int end = s.length(); end >= 0; end--) {
+            if (isPal(s, 0, end - 1)) {
+                String suffix = s.substring(end);
+                return new StringBuilder(suffix).reverse().toString() + s;
+            }
+        }
+        return s;
+    }
+
+    private boolean isPal(String s, int l, int r) {
+        while (l < r) {
+            if (s.charAt(l++) != s.charAt(r--)) return false;
+        }
+        return true;
+    }
+}
+```
+
+
+
+#### 资深解法：KMP 在 `s + "#" + reverse(s)` 中求最长回文前缀
+
+算法思想：KMP 在 `s + "#" + reverse(s)` 中求最长回文前缀。
+
+
+```java
+class Solution {
+    public String shortestPalindrome(String s) {
+        String r = new StringBuilder(s).reverse().toString();
+        String t = s + "#" + r;
+        int[] lps = new int[t.length()];
+        for (int i = 1; i < t.length(); i++) {
+            int j = lps[i - 1];
+            while (j > 0 && t.charAt(i) != t.charAt(j)) j = lps[j - 1];
+            if (t.charAt(i) == t.charAt(j)) j++;
+            lps[i] = j;
+        }
+        return r.substring(0, s.length() - lps[t.length() - 1]) + s;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- `lps` 表示最长相等前后缀；分隔符避免左右串交叉匹配。
 
 ---
 
@@ -161,6 +445,46 @@ wordDictionary.search("b.."); // 返回 True
 
  `1 <= k <= nums.length <= 105` 
  `-104 <= nums[i] <= 104`
+
+### Java 解法补充
+
+#### 基础解法：排序后返回 `nums[n-k]`
+
+算法思想：排序后返回 `nums[n-k]`，时间 `O(n log n)`。
+
+```java
+class Solution {
+    public int findKthLargest(int[] nums, int k) {
+        java.util.Arrays.sort(nums);
+        return nums[nums.length - k];
+    }
+}
+```
+
+
+
+#### 资深解法：小根堆维护最大的 `k` 个元素
+
+算法思想：小根堆维护最大的 `k` 个元素，堆顶即第 `k` 大。
+
+
+```java
+class Solution {
+    public int findKthLargest(int[] nums, int k) {
+        PriorityQueue<Integer> heap = new PriorityQueue<>();
+        for (int x : nums) {
+            heap.offer(x);
+            if (heap.size() > k) heap.poll();
+        }
+        return heap.peek();
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- `PriorityQueue` 默认小根堆；也可用快速选择做到平均 `O(n)`。
 
 ---
 
@@ -210,6 +534,68 @@ wordDictionary.search("b.."); // 返回 True
  `2 <= k <= 9` 
  `1 <= n <= 60`
 
+### Java 解法补充
+
+#### 基础解法：回溯枚举 1 到 9 的选择
+
+算法思想：回溯枚举 1 到 9 的选择，路径长度为 `k` 且和为 `n` 时收集。
+
+```java
+class Solution {
+    public java.util.List<java.util.List<Integer>> combinationSum3(int k, int n) {
+        java.util.List<java.util.List<Integer>> ans = new java.util.ArrayList<>();
+        backtrack(1, k, n, new java.util.ArrayList<>(), ans);
+        return ans;
+    }
+
+    private void backtrack(int start, int k, int remain, java.util.List<Integer> path, java.util.List<java.util.List<Integer>> ans) {
+        if (path.size() == k) {
+            if (remain == 0) ans.add(new java.util.ArrayList<>(path));
+            return;
+        }
+        for (int x = start; x <= 9; x++) {
+            path.add(x);
+            backtrack(x + 1, k, remain - x, path, ans);
+            path.remove(path.size() - 1);
+        }
+    }
+}
+```
+
+
+
+#### 资深解法：利用 `start` 和剩余和剪枝
+
+算法思想：利用 `start` 和剩余和剪枝，超过目标立即停止。
+
+
+```java
+class Solution {
+    public List<List<Integer>> combinationSum3(int k, int n) {
+        List<List<Integer>> ans = new ArrayList<>();
+        dfs(1, k, n, new ArrayList<>(), ans);
+        return ans;
+    }
+
+    private void dfs(int start, int k, int remain, List<Integer> path, List<List<Integer>> ans) {
+        if (path.size() == k) {
+            if (remain == 0) ans.add(new ArrayList<>(path));
+            return;
+        }
+        for (int x = start; x <= 9 && x <= remain; x++) {
+            path.add(x);
+            dfs(x + 1, k, remain - x, path, ans);
+            path.remove(path.size() - 1);
+        }
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 回溯撤销用 `remove(size - 1)`；每个数字最多使用一次。
+
 ---
 
 ## 217. 存在重复元素 (Easy)
@@ -240,6 +626,46 @@ wordDictionary.search("b.."); // 返回 True
 
  `1 <= nums.length <= 105` 
  `-109 <= nums[i] <= 109`
+
+### Java 解法补充
+
+#### 基础解法：排序后检查相邻元素是否相等
+
+算法思想：排序后检查相邻元素是否相等。
+
+```java
+class Solution {
+    public boolean containsDuplicate(int[] nums) {
+        java.util.Arrays.sort(nums);
+        for (int i = 1; i < nums.length; i++) {
+            if (nums[i] == nums[i - 1]) return true;
+        }
+        return false;
+    }
+}
+```
+
+
+
+#### 资深解法：哈希集合
+
+算法思想：哈希集合，加入失败说明已出现。
+
+
+```java
+class Solution {
+    public boolean containsDuplicate(int[] nums) {
+        Set<Integer> seen = new HashSet<>();
+        for (int x : nums) if (!seen.add(x)) return true;
+        return false;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- `Set.add` 返回是否成功新增；哈希查重均摊 `O(n)`。
 
 ---
 
@@ -281,6 +707,81 @@ wordDictionary.search("b.."); // 返回 True
  `1 <= heighti <= 231 - 1` 
  `buildings`  按  `lefti`  非递减排序
 
+### Java 解法补充
+
+#### 基础解法：扫描每个关键横坐标并计算当前最高楼
+
+算法思想：扫描每个关键横坐标并计算当前最高楼，复杂度较高。
+
+```java
+class Solution {
+    public java.util.List<java.util.List<Integer>> getSkyline(int[][] buildings) {
+        java.util.TreeSet<Integer> xs = new java.util.TreeSet<>();
+        for (int[] b : buildings) {
+            xs.add(b[0]);
+            xs.add(b[1]);
+        }
+        java.util.List<java.util.List<Integer>> ans = new java.util.ArrayList<>();
+        int prev = 0;
+        for (int x : xs) {
+            int height = 0;
+            for (int[] b : buildings) {
+                if (b[0] <= x && x < b[1]) height = Math.max(height, b[2]);
+            }
+            if (ans.isEmpty() || height != prev) {
+                ans.add(java.util.Arrays.asList(x, height));
+                prev = height;
+            }
+        }
+        return ans;
+    }
+}
+```
+
+
+
+#### 资深解法：扫描线。左边界加入高度
+
+算法思想：扫描线。左边界加入高度，右边界移除高度；当前最大高度变化时生成关键点。
+
+
+```java
+class Solution {
+    public List<List<Integer>> getSkyline(int[][] buildings) {
+        List<int[]> events = new ArrayList<>();
+        for (int[] b : buildings) {
+            events.add(new int[]{b[0], -b[2]});
+            events.add(new int[]{b[1], b[2]});
+        }
+        events.sort((a, b) -> a[0] != b[0] ? a[0] - b[0] : a[1] - b[1]);
+        TreeMap<Integer, Integer> heights = new TreeMap<>();
+        heights.put(0, 1);
+        int prev = 0;
+        List<List<Integer>> ans = new ArrayList<>();
+        for (int[] e : events) {
+            int h = e[1];
+            if (h < 0) heights.put(-h, heights.getOrDefault(-h, 0) + 1);
+            else {
+                int c = heights.get(h);
+                if (c == 1) heights.remove(h);
+                else heights.put(h, c - 1);
+            }
+            int cur = heights.lastKey();
+            if (cur != prev) {
+                ans.add(Arrays.asList(e[0], cur));
+                prev = cur;
+            }
+        }
+        return ans;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- `TreeMap.lastKey()` 取当前最高高度；负高度让同一横坐标的左边界优先处理。
+
 ---
 
 ## 219. 存在重复元素 II (Easy)
@@ -315,6 +816,50 @@ wordDictionary.search("b.."); // 返回 True
  `1 <= nums.length <= 105` 
  `-109 <= nums[i] <= 109` 
  `0 <= k <= 105`
+
+### Java 解法补充
+
+#### 基础解法：对每个位置向前检查最多 `k` 个元素
+
+算法思想：对每个位置向前检查最多 `k` 个元素。
+
+```java
+class Solution {
+    public boolean containsNearbyDuplicate(int[] nums, int k) {
+        for (int i = 0; i < nums.length; i++) {
+            for (int j = Math.max(0, i - k); j < i; j++) {
+                if (nums[i] == nums[j]) return true;
+            }
+        }
+        return false;
+    }
+}
+```
+
+
+
+#### 资深解法：哈希表记录每个值最近出现位置
+
+算法思想：哈希表记录每个值最近出现位置，距离不超过 `k` 即成功。
+
+
+```java
+class Solution {
+    public boolean containsNearbyDuplicate(int[] nums, int k) {
+        Map<Integer, Integer> last = new HashMap<>();
+        for (int i = 0; i < nums.length; i++) {
+            if (last.containsKey(nums[i]) && i - last.get(nums[i]) <= k) return true;
+            last.put(nums[i], i);
+        }
+        return false;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 最近位置足够判断最小距离；旧位置可被覆盖。
 
 ---
 
@@ -357,6 +902,59 @@ abs(nums[i] - nums[j]) <= valueDiff --> abs(1 - 1) <= 0
  `1 <= indexDiff <= nums.length` 
  `0 <= valueDiff <= 109`
 
+### Java 解法补充
+
+#### 基础解法：滑动窗口内两两比较
+
+算法思想：滑动窗口内两两比较，时间 `O(nk)`。
+
+```java
+class Solution {
+    public boolean containsNearbyAlmostDuplicate(int[] nums, int indexDiff, int valueDiff) {
+        for (int i = 0; i < nums.length; i++) {
+            for (int j = Math.max(0, i - indexDiff); j < i; j++) {
+                if (Math.abs((long) nums[i] - nums[j]) <= valueDiff) return true;
+            }
+        }
+        return false;
+    }
+}
+```
+
+
+
+#### 资深解法：桶。宽度为 `valueDiff + 1`
+
+算法思想：桶。宽度为 `valueDiff + 1`，同桶或相邻桶可能满足差值要求。
+
+
+```java
+class Solution {
+    public boolean containsNearbyAlmostDuplicate(int[] nums, int indexDiff, int valueDiff) {
+        Map<Long, Long> buckets = new HashMap<>();
+        long w = (long) valueDiff + 1;
+        for (int i = 0; i < nums.length; i++) {
+            long id = getId(nums[i], w);
+            if (buckets.containsKey(id)) return true;
+            if (buckets.containsKey(id - 1) && Math.abs(nums[i] - buckets.get(id - 1)) < w) return true;
+            if (buckets.containsKey(id + 1) && Math.abs(nums[i] - buckets.get(id + 1)) < w) return true;
+            buckets.put(id, (long) nums[i]);
+            if (i >= indexDiff) buckets.remove(getId(nums[i - indexDiff], w));
+        }
+        return false;
+    }
+
+    private long getId(long x, long w) {
+        return x >= 0 ? x / w : (x + 1) / w - 1;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 用 `long` 防止差值溢出；桶编号要正确处理负数。
+
 ---
 
 ## 221. 最大正方形 (Medium)
@@ -391,6 +989,67 @@ abs(nums[i] - nums[j]) <= valueDiff --> abs(1 - 1) <= 0
  `n == matrix[i].length` 
  `1 <= m, n <= 300` 
  `matrix[i][j]`  为  `'0'`  或  `'1'`
+
+### Java 解法补充
+
+#### 基础解法：枚举每个左上角和边长检查是否全为 1
+
+算法思想：枚举每个左上角和边长检查是否全为 1。
+
+```java
+class Solution {
+    public int maximalSquare(char[][] matrix) {
+        int m = matrix.length, n = matrix[0].length, best = 0;
+        for (int r = 0; r < m; r++) {
+            for (int c = 0; c < n; c++) {
+                for (int len = 1; r + len <= m && c + len <= n; len++) {
+                    if (allOne(matrix, r, c, len)) best = Math.max(best, len * len);
+                }
+            }
+        }
+        return best;
+    }
+
+    private boolean allOne(char[][] matrix, int r, int c, int len) {
+        for (int i = r; i < r + len; i++) {
+            for (int j = c; j < c + len; j++) {
+                if (matrix[i][j] != '1') return false;
+            }
+        }
+        return true;
+    }
+}
+```
+
+
+
+#### 资深解法：DP。若当前位置为 1
+
+算法思想：DP。若当前位置为 1，则最大边长取左、上、左上三者最小值加一。
+
+
+```java
+class Solution {
+    public int maximalSquare(char[][] matrix) {
+        int m = matrix.length, n = matrix[0].length, best = 0;
+        int[][] dp = new int[m + 1][n + 1];
+        for (int i = 1; i <= m; i++) {
+            for (int j = 1; j <= n; j++) {
+                if (matrix[i - 1][j - 1] == '1') {
+                    dp[i][j] = Math.min(Math.min(dp[i - 1][j], dp[i][j - 1]), dp[i - 1][j - 1]) + 1;
+                    best = Math.max(best, dp[i][j]);
+                }
+            }
+        }
+        return best * best;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 多一圈 DP 边界可省去越界判断；返回面积不是边长。
 
 ---
 
@@ -430,6 +1089,53 @@ abs(nums[i] - nums[j]) <= valueDiff --> abs(1 - 1) <= 0
  
  **进阶：** 遍历树来统计节点是一种时间复杂度为  `O(n)`  的简单解决方案。你可以设计一个更快的算法吗？
 
+### Java 解法补充
+
+#### 基础解法：普通 DFS 统计所有节点
+
+算法思想：普通 DFS 统计所有节点，时间 `O(n)`。
+
+```java
+class Solution {
+    public int countNodes(TreeNode root) {
+        if (root == null) return 0;
+        return 1 + countNodes(root.left) + countNodes(root.right);
+    }
+}
+```
+
+
+
+#### 资深解法：比较左右子树最左深度；深度相同则左子树满
+
+算法思想：比较左右子树最左深度；深度相同则左子树满，否则右子树满。
+
+
+```java
+class Solution {
+    public int countNodes(TreeNode root) {
+        if (root == null) return 0;
+        int left = depth(root.left), right = depth(root.right);
+        if (left == right) return (1 << left) + countNodes(root.right);
+        return (1 << right) + countNodes(root.left);
+    }
+
+    private int depth(TreeNode node) {
+        int d = 0;
+        while (node != null) {
+            d++;
+            node = node.left;
+        }
+        return d;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 满二叉树节点数为 `2^h - 1`，加根后可写成 `1 << h`。
+
 ---
 
 ## 223. 矩形面积 (Medium)
@@ -462,6 +1168,48 @@ abs(nums[i] - nums[j]) <= valueDiff --> abs(1 - 1) <= 0
  `-104 <= ay1 <= ay2 <= 104` 
  `-104 <= bx1 <= bx2 <= 104` 
  `-104 <= by1 <= by2 <= 104`
+
+### Java 解法补充
+
+#### 基础解法：两个矩形面积相加
+
+算法思想：两个矩形面积相加，再减去重叠部分。
+
+```java
+class Solution {
+    public int computeArea(int ax1, int ay1, int ax2, int ay2, int bx1, int by1, int bx2, int by2) {
+        int areaA = (ax2 - ax1) * (ay2 - ay1);
+        int areaB = (bx2 - bx1) * (by2 - by1);
+        int overlapW = Math.max(0, Math.min(ax2, bx2) - Math.max(ax1, bx1));
+        int overlapH = Math.max(0, Math.min(ay2, by2) - Math.max(ay1, by1));
+        return areaA + areaB - overlapW * overlapH;
+    }
+}
+```
+
+
+
+#### 资深解法：重叠宽高分别由交集边界计算
+
+算法思想：重叠宽高分别由交集边界计算，若为负则按 0 处理。
+
+
+```java
+class Solution {
+    public int computeArea(int ax1, int ay1, int ax2, int ay2, int bx1, int by1, int bx2, int by2) {
+        int area1 = (ax2 - ax1) * (ay2 - ay1);
+        int area2 = (bx2 - bx1) * (by2 - by1);
+        int w = Math.max(0, Math.min(ax2, bx2) - Math.max(ax1, bx1));
+        int h = Math.max(0, Math.min(ay2, by2) - Math.max(ay1, by1));
+        return area1 + area2 - w * h;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 一维区间交集长度模板是 `min(right) - max(left)`。
 
 ---
 
@@ -501,6 +1249,86 @@ abs(nums[i] - nums[j]) <= valueDiff --> abs(1 - 1) <= 0
  `'-'`  可以用作一元运算(即  `"-1"`  和  `"-(2 + 3)"`  是有效的)
 输入中不存在两个连续的操作符
 每个数字和运行的计算将适合于一个有符号的 32位 整数
+
+### Java 解法补充
+
+#### 基础解法：递归处理括号内表达式
+
+算法思想：递归处理括号内表达式，遇到 `)` 返回当前结果。
+
+```java
+class Solution {
+    private int index;
+
+    public int calculate(String s) {
+        index = 0;
+        return eval(s);
+    }
+
+    private int eval(String s) {
+        int ans = 0, sign = 1, num = 0;
+        while (index < s.length()) {
+            char c = s.charAt(index++);
+            if (Character.isDigit(c)) {
+                num = num * 10 + c - '0';
+            } else if (c == '+') {
+                ans += sign * num;
+                num = 0;
+                sign = 1;
+            } else if (c == '-') {
+                ans += sign * num;
+                num = 0;
+                sign = -1;
+            } else if (c == '(') {
+                num = eval(s);
+            } else if (c == ')') {
+                break;
+            }
+        }
+        return ans + sign * num;
+    }
+}
+```
+
+
+
+#### 资深解法：栈保存括号前的结果和符号
+
+算法思想：栈保存括号前的结果和符号，扫描一次完成加减与括号。
+
+
+```java
+class Solution {
+    public int calculate(String s) {
+        Deque<Integer> stack = new ArrayDeque<>();
+        int ans = 0, sign = 1, n = s.length();
+        for (int i = 0; i < n; i++) {
+            char c = s.charAt(i);
+            if (Character.isDigit(c)) {
+                int num = 0;
+                while (i < n && Character.isDigit(s.charAt(i))) num = num * 10 + s.charAt(i++) - '0';
+                i--;
+                ans += sign * num;
+            } else if (c == '+') sign = 1;
+            else if (c == '-') sign = -1;
+            else if (c == '(') {
+                stack.push(ans);
+                stack.push(sign);
+                ans = 0;
+                sign = 1;
+            } else if (c == ')') {
+                ans = stack.pop() * ans + stack.pop();
+            }
+        }
+        return ans;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 栈里先放旧结果再放旧符号；遇到右括号时恢复上下文。
 
 ---
 
@@ -549,6 +1377,66 @@ myStack.empty(); // 返回 False
  
  **进阶：** 你能否仅用一个队列来实现栈。
 
+### Java 解法补充
+
+#### 基础解法：两个队列搬运元素
+
+算法思想：两个队列搬运元素，让最后入队的元素先出。
+
+```java
+class MyStack {
+    private java.util.Queue<Integer> q1 = new java.util.ArrayDeque<>();
+    private java.util.Queue<Integer> q2 = new java.util.ArrayDeque<>();
+
+    public void push(int x) {
+        q2.offer(x);
+        while (!q1.isEmpty()) q2.offer(q1.poll());
+        java.util.Queue<Integer> t = q1;
+        q1 = q2;
+        q2 = t;
+    }
+
+    public int pop() {
+        return q1.poll();
+    }
+
+    public int top() {
+        return q1.peek();
+    }
+
+    public boolean empty() {
+        return q1.isEmpty();
+    }
+}
+```
+
+
+
+#### 资深解法：一个队列
+
+算法思想：一个队列，入队后把前面的元素轮转到队尾，使队头始终是栈顶。
+
+
+```java
+class MyStack {
+    private Queue<Integer> q = new ArrayDeque<>();
+
+    public void push(int x) {
+        q.offer(x);
+        for (int i = 0, n = q.size(); i < n - 1; i++) q.offer(q.poll());
+    }
+
+    public int pop() { return q.poll(); }
+    public int top() { return q.peek(); }
+    public boolean empty() { return q.isEmpty(); }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 队列 FIFO，通过旋转队列模拟 LIFO。
+
 ---
 
 ## 226. 翻转二叉树 (Easy)
@@ -581,6 +1469,50 @@ myStack.empty(); // 返回 False
 
 树中节点数目范围在  `[0, 100]`  内
  `-100 <= Node.val <= 100`
+
+### Java 解法补充
+
+#### 基础解法：递归交换每个节点的左右子树
+
+算法思想：递归交换每个节点的左右子树。
+
+```java
+class Solution {
+    public TreeNode invertTree(TreeNode root) {
+        if (root == null) return null;
+        TreeNode left = invertTree(root.left);
+        TreeNode right = invertTree(root.right);
+        root.left = right;
+        root.right = left;
+        return root;
+    }
+}
+```
+
+
+
+#### 资深解法：BFS/DFS 迭代也可；递归最短且结构清晰
+
+算法思想：BFS/DFS 迭代也可；递归最短且结构清晰。
+
+
+```java
+class Solution {
+    public TreeNode invertTree(TreeNode root) {
+        if (root == null) return null;
+        TreeNode left = invertTree(root.left);
+        TreeNode right = invertTree(root.right);
+        root.left = right;
+        root.right = left;
+        return root;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 树问题常用“处理左右子树后回到当前节点”的递归模型。
 
 ---
 
@@ -620,6 +1552,75 @@ myStack.empty(); // 返回 False
  `s`  表示一个  **有效表达式** 
 表达式中的所有整数都是非负整数，且在范围  `[0, 231 - 1]`  内
 题目数据保证答案是一个  **32-bit 整数**
+
+### Java 解法补充
+
+#### 基础解法：栈保存每段带符号数字
+
+算法思想：栈保存每段带符号数字，遇到乘除立即合并栈顶。
+
+```java
+class Solution {
+    public int calculate(String s) {
+        java.util.Deque<Integer> stack = new java.util.ArrayDeque<>();
+        int num = 0;
+        char op = '+';
+        for (int i = 0; i <= s.length(); i++) {
+            char c = i == s.length() ? '+' : s.charAt(i);
+            if (c == ' ') continue;
+            if (Character.isDigit(c)) {
+                num = num * 10 + c - '0';
+            } else {
+                if (op == '+') stack.push(num);
+                else if (op == '-') stack.push(-num);
+                else if (op == '*') stack.push(stack.pop() * num);
+                else stack.push(stack.pop() / num);
+                op = c;
+                num = 0;
+            }
+        }
+        int ans = 0;
+        while (!stack.isEmpty()) ans += stack.pop();
+        return ans;
+    }
+}
+```
+
+
+
+#### 资深解法：只用 `last` 保存上一段乘除链的值
+
+算法思想：只用 `last` 保存上一段乘除链的值，`ans` 保存已确定的加减结果。
+
+
+```java
+class Solution {
+    public int calculate(String s) {
+        int ans = 0, last = 0, num = 0;
+        char op = '+';
+        for (int i = 0; i <= s.length(); i++) {
+            char c = i == s.length() ? '+' : s.charAt(i);
+            if (i < s.length() && c == ' ') continue;
+            if (i < s.length() && Character.isDigit(c)) {
+                num = num * 10 + c - '0';
+            } else {
+                if (op == '+') { ans += last; last = num; }
+                else if (op == '-') { ans += last; last = -num; }
+                else if (op == '*') last *= num;
+                else if (op == '/') last /= num;
+                op = c;
+                num = 0;
+            }
+        }
+        return ans + last;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 乘除优先级通过延迟把 `last` 加入总和实现。
 
 ---
 
@@ -665,6 +1666,56 @@ myStack.empty(); // 返回 False
  `nums`  中的所有值都  **互不相同** 
  `nums`  按升序排列
 
+### Java 解法补充
+
+#### 基础解法：双指针找到每段连续区间
+
+算法思想：双指针找到每段连续区间，单点和范围分别格式化。
+
+```java
+class Solution {
+    public java.util.List<String> summaryRanges(int[] nums) {
+        java.util.List<String> ans = new java.util.ArrayList<>();
+        int i = 0;
+        while (i < nums.length) {
+            int start = nums[i];
+            while (i + 1 < nums.length && nums[i + 1] == nums[i] + 1) i++;
+            int end = nums[i];
+            ans.add(start == end ? String.valueOf(start) : start + "->" + end);
+            i++;
+        }
+        return ans;
+    }
+}
+```
+
+
+
+#### 资深解法：一次扫描
+
+算法思想：一次扫描，每段起点固定，终点尽量向右扩展。
+
+
+```java
+class Solution {
+    public List<String> summaryRanges(int[] nums) {
+        List<String> ans = new ArrayList<>();
+        for (int i = 0; i < nums.length; i++) {
+            int start = nums[i];
+            while (i + 1 < nums.length && nums[i + 1] == nums[i] + 1) i++;
+            if (start == nums[i]) ans.add(String.valueOf(start));
+            else ans.add(start + "->" + nums[i]);
+        }
+        return ans;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- `String.valueOf` 生成单点字符串；连续段判断只需看相邻差为 1。
+
 ---
 
 ## 229. 多数元素 II (Medium)
@@ -701,6 +1752,62 @@ myStack.empty(); // 返回 False
  
  **进阶：** 尝试设计时间复杂度为 O(n)、空间复杂度为 O(1)的算法解决此问题。
 
+### Java 解法补充
+
+#### 基础解法：哈希表计数
+
+算法思想：哈希表计数，找出现次数大于 `n/3` 的元素。
+
+```java
+class Solution {
+    public java.util.List<Integer> majorityElement(int[] nums) {
+        java.util.Map<Integer, Integer> count = new java.util.HashMap<>();
+        java.util.List<Integer> ans = new java.util.ArrayList<>();
+        for (int x : nums) count.put(x, count.getOrDefault(x, 0) + 1);
+        for (int x : count.keySet()) {
+            if (count.get(x) > nums.length / 3) ans.add(x);
+        }
+        return ans;
+    }
+}
+```
+
+
+
+#### 资深解法：Boyer-Moore 扩展
+
+算法思想：Boyer-Moore 扩展，最多只有两个超过 `n/3` 的候选。
+
+
+```java
+class Solution {
+    public List<Integer> majorityElement(int[] nums) {
+        int a = 0, b = 1, ca = 0, cb = 0;
+        for (int x : nums) {
+            if (x == a) ca++;
+            else if (x == b) cb++;
+            else if (ca == 0) { a = x; ca = 1; }
+            else if (cb == 0) { b = x; cb = 1; }
+            else { ca--; cb--; }
+        }
+        ca = cb = 0;
+        for (int x : nums) {
+            if (x == a) ca++;
+            else if (x == b) cb++;
+        }
+        List<Integer> ans = new ArrayList<>();
+        if (ca > nums.length / 3) ans.add(a);
+        if (cb > nums.length / 3) ans.add(b);
+        return ans;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 候选阶段后必须二次计数验证，因为题目不保证答案存在。
+
 ---
 
 ## 230. 二叉搜索树中第 K 小的元素 (Medium)
@@ -731,6 +1838,59 @@ myStack.empty(); // 返回 False
 
  
  **进阶：** 如果二叉搜索树经常被修改（插入/删除操作）并且你需要频繁地查找第  `k`  小的值，你将如何优化算法？
+
+### Java 解法补充
+
+#### 基础解法：中序遍历收集列表后取第 `k` 个
+
+算法思想：中序遍历收集列表后取第 `k` 个。
+
+```java
+class Solution {
+    public int kthSmallest(TreeNode root, int k) {
+        java.util.List<Integer> values = new java.util.ArrayList<>();
+        inorder(root, values);
+        return values.get(k - 1);
+    }
+
+    private void inorder(TreeNode node, java.util.List<Integer> values) {
+        if (node == null) return;
+        inorder(node.left, values);
+        values.add(node.val);
+        inorder(node.right, values);
+    }
+}
+```
+
+
+
+#### 资深解法：迭代中序
+
+算法思想：迭代中序，访问到第 `k` 个节点立即返回。
+
+
+```java
+class Solution {
+    public int kthSmallest(TreeNode root, int k) {
+        Deque<TreeNode> stack = new ArrayDeque<>();
+        while (root != null || !stack.isEmpty()) {
+            while (root != null) {
+                stack.push(root);
+                root = root.left;
+            }
+            root = stack.pop();
+            if (--k == 0) return root.val;
+            root = root.right;
+        }
+        return -1;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- BST 中序有序；显式栈模拟递归左根右。
 
 ---
 
@@ -769,6 +1929,42 @@ myStack.empty(); // 返回 False
 
  
  **进阶：** 你能够不使用循环/递归解决此问题吗？
+
+### Java 解法补充
+
+#### 基础解法：不断除以 2
+
+算法思想：不断除以 2，最后是否等于 1。
+
+```java
+class Solution {
+    public boolean isPowerOfTwo(int n) {
+        if (n <= 0) return false;
+        while (n % 2 == 0) n /= 2;
+        return n == 1;
+    }
+}
+```
+
+
+
+#### 资深解法：正的 2 的幂二进制只有一个 1
+
+算法思想：正的 2 的幂二进制只有一个 1。
+
+
+```java
+class Solution {
+    public boolean isPowerOfTwo(int n) {
+        return n > 0 && (n & (n - 1)) == 0;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- `n & (n - 1)` 删除最低位的 1。
 
 ---
 
@@ -818,6 +2014,65 @@ myQueue.empty(); // return false
 
 你能否实现每个操作均摊时间复杂度为  `O(1)`  的队列？换句话说，执行  `n`  个操作的总时间复杂度为  `O(n)`  ，即使其中一个操作可能花费较长时间。
 
+### Java 解法补充
+
+#### 基础解法：每次 `push` 时搬运两个栈
+
+算法思想：每次 `push` 时搬运两个栈，让输出栈顶是队头。
+
+```java
+class MyQueue {
+    private java.util.Deque<Integer> in = new java.util.ArrayDeque<>();
+    private java.util.Deque<Integer> out = new java.util.ArrayDeque<>();
+
+    public void push(int x) {
+        while (!out.isEmpty()) in.push(out.pop());
+        in.push(x);
+        while (!in.isEmpty()) out.push(in.pop());
+    }
+
+    public int pop() {
+        return out.pop();
+    }
+
+    public int peek() {
+        return out.peek();
+    }
+
+    public boolean empty() {
+        return out.isEmpty();
+    }
+}
+```
+
+
+
+#### 资深解法：懒搬运：输入栈收元素
+
+算法思想：懒搬运：输入栈收元素，只有输出栈为空时才整体倒过去。
+
+
+```java
+class MyQueue {
+    private Deque<Integer> in = new ArrayDeque<>();
+    private Deque<Integer> out = new ArrayDeque<>();
+
+    public void push(int x) { in.push(x); }
+    public int pop() { move(); return out.pop(); }
+    public int peek() { move(); return out.peek(); }
+    public boolean empty() { return in.isEmpty() && out.isEmpty(); }
+
+    private void move() {
+        if (out.isEmpty()) while (!in.isEmpty()) out.push(in.pop());
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 两次栈反转恢复队列 FIFO 顺序；均摊 `O(1)`。
+
 ---
 
 ## 233. 数字 1 的个数 (Hard)
@@ -842,6 +2097,59 @@ myQueue.empty(); // return false
  **提示：** 
 
  `0 <= n <= 109`
+
+### Java 解法补充
+
+#### 基础解法：枚举 1 到 n 并逐位统计 1
+
+算法思想：枚举 1 到 n 并逐位统计 1，时间较高。
+
+```java
+class Solution {
+    public int countDigitOne(int n) {
+        int ans = 0;
+        for (int x = 1; x <= n; x++) {
+            int cur = x;
+            while (cur > 0) {
+                if (cur % 10 == 1) ans++;
+                cur /= 10;
+            }
+        }
+        return ans;
+    }
+}
+```
+
+
+
+#### 资深解法：按每一位的高位、当前位、低位贡献统计
+
+算法思想：按每一位的高位、当前位、低位贡献统计。
+
+
+```java
+class Solution {
+    public int countDigitOne(int n) {
+        long factor = 1;
+        int ans = 0;
+        while (factor <= n) {
+            long high = n / (factor * 10);
+            long cur = (n / factor) % 10;
+            long low = n % factor;
+            if (cur == 0) ans += high * factor;
+            else if (cur == 1) ans += high * factor + low + 1;
+            else ans += (high + 1) * factor;
+            factor *= 10;
+        }
+        return ans;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- `long factor` 防止乘 10 溢出；数位 DP 常按位贡献拆分。
 
 ---
 
@@ -871,6 +2179,70 @@ myQueue.empty(); // return false
 
  
  **进阶：** 你能否用  `O(n)`  时间复杂度和  `O(1)`  空间复杂度解决此题？
+
+### Java 解法补充
+
+#### 基础解法：把链表值放入数组后双指针判断回文
+
+算法思想：把链表值放入数组后双指针判断回文。
+
+```java
+class Solution {
+    public boolean isPalindrome(ListNode head) {
+        java.util.List<Integer> values = new java.util.ArrayList<>();
+        for (ListNode cur = head; cur != null; cur = cur.next) values.add(cur.val);
+        int left = 0, right = values.size() - 1;
+        while (left < right) {
+            if (!values.get(left).equals(values.get(right))) return false;
+            left++;
+            right--;
+        }
+        return true;
+    }
+}
+```
+
+
+
+#### 资深解法：快慢指针找中点
+
+算法思想：快慢指针找中点，反转后半段，再逐个比较。
+
+
+```java
+class Solution {
+    public boolean isPalindrome(ListNode head) {
+        ListNode slow = head, fast = head;
+        while (fast != null && fast.next != null) {
+            slow = slow.next;
+            fast = fast.next.next;
+        }
+        ListNode second = reverse(slow);
+        while (second != null) {
+            if (head.val != second.val) return false;
+            head = head.next;
+            second = second.next;
+        }
+        return true;
+    }
+
+    private ListNode reverse(ListNode head) {
+        ListNode prev = null;
+        while (head != null) {
+            ListNode next = head.next;
+            head.next = prev;
+            prev = head;
+            head = next;
+        }
+        return prev;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 后半段反转后可线性比较；若需要保持原链表，可最后再反转回来。
 
 ---
 
@@ -902,6 +2274,63 @@ myQueue.empty(); // return false
 
 所有节点的值都是唯一的。
 p、q 为不同节点且均存在于给定的二叉搜索树中。
+
+### Java 解法补充
+
+#### 基础解法：分别记录根到两个节点的路径
+
+算法思想：分别记录根到两个节点的路径，再找最后一个相同节点。
+
+```java
+class Solution {
+    public TreeNode lowestCommonAncestor(TreeNode root, TreeNode p, TreeNode q) {
+        java.util.List<TreeNode> pathP = new java.util.ArrayList<>();
+        java.util.List<TreeNode> pathQ = new java.util.ArrayList<>();
+        path(root, p, pathP);
+        path(root, q, pathQ);
+        TreeNode ans = root;
+        for (int i = 0; i < Math.min(pathP.size(), pathQ.size()); i++) {
+            if (pathP.get(i) != pathQ.get(i)) break;
+            ans = pathP.get(i);
+        }
+        return ans;
+    }
+
+    private boolean path(TreeNode node, TreeNode target, java.util.List<TreeNode> path) {
+        if (node == null) return false;
+        path.add(node);
+        if (node == target) return true;
+        if (path(node.left, target, path) || path(node.right, target, path)) return true;
+        path.remove(path.size() - 1);
+        return false;
+    }
+}
+```
+
+
+
+#### 资深解法：利用 BST 有序性：两个值都小于当前节点就向左
+
+算法思想：利用 BST 有序性：两个值都小于当前节点就向左，都大于就向右，否则当前节点是 LCA。
+
+
+```java
+class Solution {
+    public TreeNode lowestCommonAncestor(TreeNode root, TreeNode p, TreeNode q) {
+        while (root != null) {
+            if (p.val < root.val && q.val < root.val) root = root.left;
+            else if (p.val > root.val && q.val > root.val) root = root.right;
+            else return root;
+        }
+        return null;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- BST 的左右子树值域能直接决定搜索方向。
 
 ---
 
@@ -941,6 +2370,59 @@ p、q 为不同节点且均存在于给定的二叉搜索树中。
 所有  `Node.val`   `互不相同`  。
  `p != q` 
  `p`  和  `q`  均存在于给定的二叉树中。
+
+### Java 解法补充
+
+#### 基础解法：建父指针表
+
+算法思想：建父指针表，从一个节点向上走并用集合记录祖先。
+
+```java
+class Solution {
+    public TreeNode lowestCommonAncestor(TreeNode root, TreeNode p, TreeNode q) {
+        java.util.Map<TreeNode, TreeNode> parent = new java.util.HashMap<>();
+        build(root, null, parent);
+        java.util.Set<TreeNode> seen = new java.util.HashSet<>();
+        while (p != null) {
+            seen.add(p);
+            p = parent.get(p);
+        }
+        while (!seen.contains(q)) q = parent.get(q);
+        return q;
+    }
+
+    private void build(TreeNode node, TreeNode par, java.util.Map<TreeNode, TreeNode> parent) {
+        if (node == null) return;
+        parent.put(node, par);
+        build(node.left, node, parent);
+        build(node.right, node, parent);
+    }
+}
+```
+
+
+
+#### 资深解法：后序递归
+
+算法思想：后序递归，左右子树分别找到目标时当前节点就是 LCA。
+
+
+```java
+class Solution {
+    public TreeNode lowestCommonAncestor(TreeNode root, TreeNode p, TreeNode q) {
+        if (root == null || root == p || root == q) return root;
+        TreeNode left = lowestCommonAncestor(root.left, p, q);
+        TreeNode right = lowestCommonAncestor(root.right, p, q);
+        if (left != null && right != null) return root;
+        return left != null ? left : right;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 递归返回“当前子树是否含目标以及找到的祖先”。
 
 ---
 
@@ -987,6 +2469,42 @@ p、q 为不同节点且均存在于给定的二叉搜索树中。
 链表中每个节点的值都是  **唯一**  的
 需要删除的节点  `node`  是  **链表中的节点**  ，且  **不是末尾节点**
 
+### Java 解法补充
+
+#### 基础解法：复制下一个节点到当前节点
+
+算法思想：本题只给待删节点，不能访问前驱；把下一个节点的值复制到当前节点，再跳过下一个节点。
+
+```java
+class Solution {
+    public void deleteNode(ListNode node) {
+        node.val = node.next.val;
+        node.next = node.next.next;
+    }
+}
+```
+
+
+
+#### 资深解法：把下一个节点的值复制到当前节点
+
+算法思想：把下一个节点的值复制到当前节点，再删除下一个节点。
+
+
+```java
+class Solution {
+    public void deleteNode(ListNode node) {
+        node.val = node.next.val;
+        node.next = node.next.next;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 本题保证待删节点不是尾节点；删除的是“下一个节点的实体”，但效果等价。
+
 ---
 
 ## 238. 除了自身以外数组的乘积 (Medium)
@@ -1018,6 +2536,58 @@ p、q 为不同节点且均存在于给定的二叉搜索树中。
 
  
  **进阶：** 你可以在  `O(1)`  的额外空间复杂度内完成这个题目吗？（ 出于对空间复杂度分析的目的，输出数组  **不被视为** 额外空间。）
+
+### Java 解法补充
+
+#### 基础解法：对每个位置计算左侧乘积和右侧乘积
+
+算法思想：对每个位置计算左侧乘积和右侧乘积，使用两个额外数组。
+
+```java
+class Solution {
+    public int[] productExceptSelf(int[] nums) {
+        int n = nums.length;
+        int[] left = new int[n];
+        int[] right = new int[n];
+        left[0] = 1;
+        right[n - 1] = 1;
+        for (int i = 1; i < n; i++) left[i] = left[i - 1] * nums[i - 1];
+        for (int i = n - 2; i >= 0; i--) right[i] = right[i + 1] * nums[i + 1];
+        int[] ans = new int[n];
+        for (int i = 0; i < n; i++) ans[i] = left[i] * right[i];
+        return ans;
+    }
+}
+```
+
+
+
+#### 资深解法：答案数组先存前缀积
+
+算法思想：答案数组先存前缀积，再用一个变量从右向左累乘后缀积。
+
+
+```java
+class Solution {
+    public int[] productExceptSelf(int[] nums) {
+        int n = nums.length;
+        int[] ans = new int[n];
+        ans[0] = 1;
+        for (int i = 1; i < n; i++) ans[i] = ans[i - 1] * nums[i - 1];
+        int right = 1;
+        for (int i = n - 1; i >= 0; i--) {
+            ans[i] *= right;
+            right *= nums[i];
+        }
+        return ans;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 不使用除法；当前位置答案等于左侧所有数乘右侧所有数。
 
 ---
 
@@ -1056,6 +2626,54 @@ p、q 为不同节点且均存在于给定的二叉搜索树中。
  `-104 <= nums[i] <= 104` 
  `1 <= k <= nums.length`
 
+### Java 解法补充
+
+#### 基础解法：每个窗口遍历求最大值
+
+算法思想：每个窗口遍历求最大值，时间 `O(nk)`。
+
+```java
+class Solution {
+    public int[] maxSlidingWindow(int[] nums, int k) {
+        int[] ans = new int[nums.length - k + 1];
+        for (int i = 0; i + k <= nums.length; i++) {
+            int max = nums[i];
+            for (int j = i; j < i + k; j++) max = Math.max(max, nums[j]);
+            ans[i] = max;
+        }
+        return ans;
+    }
+}
+```
+
+
+
+#### 资深解法：单调队列保存下标
+
+算法思想：单调队列保存下标，队首始终是当前窗口最大值。
+
+
+```java
+class Solution {
+    public int[] maxSlidingWindow(int[] nums, int k) {
+        int[] ans = new int[nums.length - k + 1];
+        Deque<Integer> dq = new ArrayDeque<>();
+        for (int i = 0; i < nums.length; i++) {
+            while (!dq.isEmpty() && dq.peekFirst() <= i - k) dq.pollFirst();
+            while (!dq.isEmpty() && nums[dq.peekLast()] <= nums[i]) dq.pollLast();
+            dq.offerLast(i);
+            if (i >= k - 1) ans[i - k + 1] = nums[dq.peekFirst()];
+        }
+        return ans;
+    }
+}
+```
+
+
+#### 基础语法与算法思想
+
+- 队列中下标对应的值保持递减；过期下标从队首移除。
+
 ---
 
 ## 240. 搜索二维矩阵 II (Medium)
@@ -1091,802 +2709,35 @@ p、q 为不同节点且均存在于给定的二叉搜索树中。
 每列的所有元素从上到下升序排列
 `-109 <= target <= 109`
 
----
+### Java 解法补充
 
-# Java 解法补充附录（211-240）
+#### 基础解法：对每一行二分搜索目标
 
-### 211. 添加与搜索单词 - 数据结构设计
-
-**基础解法：** 用列表保存单词，搜索时逐个匹配 `.` 通配符，查询代价高。
-
-**资深解法：** Trie 加 DFS，普通字符沿对应分支走，`.` 枚举所有子节点。
+算法思想：对每一行二分搜索目标，时间 `O(m log n)`。
 
 ```java
-class WordDictionary {
-    private static class Node {
-        Node[] next = new Node[26];
-        boolean word;
-    }
-    private Node root = new Node();
-
-    public void addWord(String word) {
-        Node cur = root;
-        for (char c : word.toCharArray()) {
-            int i = c - 'a';
-            if (cur.next[i] == null) cur.next[i] = new Node();
-            cur = cur.next[i];
-        }
-        cur.word = true;
-    }
-
-    public boolean search(String word) {
-        return dfs(word, 0, root);
-    }
-
-    private boolean dfs(String word, int i, Node node) {
-        if (node == null) return false;
-        if (i == word.length()) return node.word;
-        char c = word.charAt(i);
-        if (c != '.') return dfs(word, i + 1, node.next[c - 'a']);
-        for (Node child : node.next) {
-            if (dfs(word, i + 1, child)) return true;
+class Solution {
+    public boolean searchMatrix(int[][] matrix, int target) {
+        for (int[] row : matrix) {
+            int left = 0, right = row.length - 1;
+            while (left <= right) {
+                int mid = left + (right - left) / 2;
+                if (row[mid] == target) return true;
+                if (row[mid] < target) left = mid + 1;
+                else right = mid - 1;
+            }
         }
         return false;
     }
 }
 ```
 
-**基础语法与思想：** 递归参数携带当前下标和 Trie 节点；通配符搜索是分支 DFS。
 
-### 212. 单词搜索 II
 
-**基础解法：** 对每个单词单独在棋盘上 DFS，重复搜索大量前缀。
+#### 资深解法：从右上角出发
 
-**资深解法：** 把所有单词放入 Trie，从每个格子出发 DFS，走到单词结尾即收集答案。
+算法思想：从右上角出发，当前值大于目标则左移，小于目标则下移。
 
-```java
-class Solution {
-    private static class Node {
-        Node[] next = new Node[26];
-        String word;
-    }
-    private List<String> ans = new ArrayList<>();
-
-    public List<String> findWords(char[][] board, String[] words) {
-        Node root = new Node();
-        for (String w : words) insert(root, w);
-        for (int i = 0; i < board.length; i++) {
-            for (int j = 0; j < board[0].length; j++) dfs(board, i, j, root);
-        }
-        return ans;
-    }
-
-    private void insert(Node root, String word) {
-        Node cur = root;
-        for (char c : word.toCharArray()) {
-            int i = c - 'a';
-            if (cur.next[i] == null) cur.next[i] = new Node();
-            cur = cur.next[i];
-        }
-        cur.word = word;
-    }
-
-    private void dfs(char[][] b, int i, int j, Node node) {
-        if (i < 0 || i == b.length || j < 0 || j == b[0].length || b[i][j] == '#') return;
-        char c = b[i][j];
-        Node next = node.next[c - 'a'];
-        if (next == null) return;
-        if (next.word != null) {
-            ans.add(next.word);
-            next.word = null;
-        }
-        b[i][j] = '#';
-        dfs(b, i + 1, j, next); dfs(b, i - 1, j, next);
-        dfs(b, i, j + 1, next); dfs(b, i, j - 1, next);
-        b[i][j] = c;
-    }
-}
-```
-
-**基础语法与思想：** 原地标记访问格；Trie 把多个单词的共同前缀合并，减少重复搜索。
-
-### 213. 打家劫舍 II
-
-**基础解法：** 环形房屋不能同时抢首尾，可拆成“不抢最后一间”和“不抢第一间”两个线性问题。
-
-**资深解法：** 复用 198 的滚动 DP，分别计算 `[0,n-2]` 与 `[1,n-1]`。
-
-```java
-class Solution {
-    public int rob(int[] nums) {
-        int n = nums.length;
-        if (n == 1) return nums[0];
-        return Math.max(robLine(nums, 0, n - 2), robLine(nums, 1, n - 1));
-    }
-
-    private int robLine(int[] nums, int l, int r) {
-        int prev2 = 0, prev1 = 0;
-        for (int i = l; i <= r; i++) {
-            int cur = Math.max(prev1, prev2 + nums[i]);
-            prev2 = prev1;
-            prev1 = cur;
-        }
-        return prev1;
-    }
-}
-```
-
-**基础语法与思想：** 环形约束通过分类拆除；每个线性段只需两个状态。
-
-### 214. 最短回文串
-
-**基础解法：** 从长到短枚举前缀是否为回文，把剩余后缀反转到前面。
-
-**资深解法：** KMP 在 `s + "#" + reverse(s)` 中求最长回文前缀。
-
-```java
-class Solution {
-    public String shortestPalindrome(String s) {
-        String r = new StringBuilder(s).reverse().toString();
-        String t = s + "#" + r;
-        int[] lps = new int[t.length()];
-        for (int i = 1; i < t.length(); i++) {
-            int j = lps[i - 1];
-            while (j > 0 && t.charAt(i) != t.charAt(j)) j = lps[j - 1];
-            if (t.charAt(i) == t.charAt(j)) j++;
-            lps[i] = j;
-        }
-        return r.substring(0, s.length() - lps[t.length() - 1]) + s;
-    }
-}
-```
-
-**基础语法与思想：** `lps` 表示最长相等前后缀；分隔符避免左右串交叉匹配。
-
-### 215. 数组中的第 K 个最大元素
-
-**基础解法：** 排序后返回 `nums[n-k]`，时间 `O(n log n)`。
-
-**资深解法：** 小根堆维护最大的 `k` 个元素，堆顶即第 `k` 大。
-
-```java
-class Solution {
-    public int findKthLargest(int[] nums, int k) {
-        PriorityQueue<Integer> heap = new PriorityQueue<>();
-        for (int x : nums) {
-            heap.offer(x);
-            if (heap.size() > k) heap.poll();
-        }
-        return heap.peek();
-    }
-}
-```
-
-**基础语法与思想：** `PriorityQueue` 默认小根堆；也可用快速选择做到平均 `O(n)`。
-
-### 216. 组合总和 III
-
-**基础解法：** 回溯枚举 1 到 9 的选择，路径长度为 `k` 且和为 `n` 时收集。
-
-**资深解法：** 利用 `start` 和剩余和剪枝，超过目标立即停止。
-
-```java
-class Solution {
-    public List<List<Integer>> combinationSum3(int k, int n) {
-        List<List<Integer>> ans = new ArrayList<>();
-        dfs(1, k, n, new ArrayList<>(), ans);
-        return ans;
-    }
-
-    private void dfs(int start, int k, int remain, List<Integer> path, List<List<Integer>> ans) {
-        if (path.size() == k) {
-            if (remain == 0) ans.add(new ArrayList<>(path));
-            return;
-        }
-        for (int x = start; x <= 9 && x <= remain; x++) {
-            path.add(x);
-            dfs(x + 1, k, remain - x, path, ans);
-            path.remove(path.size() - 1);
-        }
-    }
-}
-```
-
-**基础语法与思想：** 回溯撤销用 `remove(size - 1)`；每个数字最多使用一次。
-
-### 217. 存在重复元素
-
-**基础解法：** 排序后检查相邻元素是否相等。
-
-**资深解法：** 哈希集合，加入失败说明已出现。
-
-```java
-class Solution {
-    public boolean containsDuplicate(int[] nums) {
-        Set<Integer> seen = new HashSet<>();
-        for (int x : nums) if (!seen.add(x)) return true;
-        return false;
-    }
-}
-```
-
-**基础语法与思想：** `Set.add` 返回是否成功新增；哈希查重均摊 `O(n)`。
-
-### 218. 天际线问题
-
-**基础解法：** 扫描每个关键横坐标并计算当前最高楼，复杂度较高。
-
-**资深解法：** 扫描线。左边界加入高度，右边界移除高度；当前最大高度变化时生成关键点。
-
-```java
-class Solution {
-    public List<List<Integer>> getSkyline(int[][] buildings) {
-        List<int[]> events = new ArrayList<>();
-        for (int[] b : buildings) {
-            events.add(new int[]{b[0], -b[2]});
-            events.add(new int[]{b[1], b[2]});
-        }
-        events.sort((a, b) -> a[0] != b[0] ? a[0] - b[0] : a[1] - b[1]);
-        TreeMap<Integer, Integer> heights = new TreeMap<>();
-        heights.put(0, 1);
-        int prev = 0;
-        List<List<Integer>> ans = new ArrayList<>();
-        for (int[] e : events) {
-            int h = e[1];
-            if (h < 0) heights.put(-h, heights.getOrDefault(-h, 0) + 1);
-            else {
-                int c = heights.get(h);
-                if (c == 1) heights.remove(h);
-                else heights.put(h, c - 1);
-            }
-            int cur = heights.lastKey();
-            if (cur != prev) {
-                ans.add(Arrays.asList(e[0], cur));
-                prev = cur;
-            }
-        }
-        return ans;
-    }
-}
-```
-
-**基础语法与思想：** `TreeMap.lastKey()` 取当前最高高度；负高度让同一横坐标的左边界优先处理。
-
-### 219. 存在重复元素 II
-
-**基础解法：** 对每个位置向前检查最多 `k` 个元素。
-
-**资深解法：** 哈希表记录每个值最近出现位置，距离不超过 `k` 即成功。
-
-```java
-class Solution {
-    public boolean containsNearbyDuplicate(int[] nums, int k) {
-        Map<Integer, Integer> last = new HashMap<>();
-        for (int i = 0; i < nums.length; i++) {
-            if (last.containsKey(nums[i]) && i - last.get(nums[i]) <= k) return true;
-            last.put(nums[i], i);
-        }
-        return false;
-    }
-}
-```
-
-**基础语法与思想：** 最近位置足够判断最小距离；旧位置可被覆盖。
-
-### 220. 存在重复元素 III
-
-**基础解法：** 滑动窗口内两两比较，时间 `O(nk)`。
-
-**资深解法：** 桶。宽度为 `valueDiff + 1`，同桶或相邻桶可能满足差值要求。
-
-```java
-class Solution {
-    public boolean containsNearbyAlmostDuplicate(int[] nums, int indexDiff, int valueDiff) {
-        Map<Long, Long> buckets = new HashMap<>();
-        long w = (long) valueDiff + 1;
-        for (int i = 0; i < nums.length; i++) {
-            long id = getId(nums[i], w);
-            if (buckets.containsKey(id)) return true;
-            if (buckets.containsKey(id - 1) && Math.abs(nums[i] - buckets.get(id - 1)) < w) return true;
-            if (buckets.containsKey(id + 1) && Math.abs(nums[i] - buckets.get(id + 1)) < w) return true;
-            buckets.put(id, (long) nums[i]);
-            if (i >= indexDiff) buckets.remove(getId(nums[i - indexDiff], w));
-        }
-        return false;
-    }
-
-    private long getId(long x, long w) {
-        return x >= 0 ? x / w : (x + 1) / w - 1;
-    }
-}
-```
-
-**基础语法与思想：** 用 `long` 防止差值溢出；桶编号要正确处理负数。
-
-### 221. 最大正方形
-
-**基础解法：** 枚举每个左上角和边长检查是否全为 1。
-
-**资深解法：** DP。若当前位置为 1，则最大边长取左、上、左上三者最小值加一。
-
-```java
-class Solution {
-    public int maximalSquare(char[][] matrix) {
-        int m = matrix.length, n = matrix[0].length, best = 0;
-        int[][] dp = new int[m + 1][n + 1];
-        for (int i = 1; i <= m; i++) {
-            for (int j = 1; j <= n; j++) {
-                if (matrix[i - 1][j - 1] == '1') {
-                    dp[i][j] = Math.min(Math.min(dp[i - 1][j], dp[i][j - 1]), dp[i - 1][j - 1]) + 1;
-                    best = Math.max(best, dp[i][j]);
-                }
-            }
-        }
-        return best * best;
-    }
-}
-```
-
-**基础语法与思想：** 多一圈 DP 边界可省去越界判断；返回面积不是边长。
-
-### 222. 完全二叉树的节点个数
-
-**基础解法：** 普通 DFS 统计所有节点，时间 `O(n)`。
-
-**资深解法：** 比较左右子树最左深度；深度相同则左子树满，否则右子树满。
-
-```java
-class Solution {
-    public int countNodes(TreeNode root) {
-        if (root == null) return 0;
-        int left = depth(root.left), right = depth(root.right);
-        if (left == right) return (1 << left) + countNodes(root.right);
-        return (1 << right) + countNodes(root.left);
-    }
-
-    private int depth(TreeNode node) {
-        int d = 0;
-        while (node != null) {
-            d++;
-            node = node.left;
-        }
-        return d;
-    }
-}
-```
-
-**基础语法与思想：** 满二叉树节点数为 `2^h - 1`，加根后可写成 `1 << h`。
-
-### 223. 矩形面积
-
-**基础解法：** 两个矩形面积相加，再减去重叠部分。
-
-**资深解法：** 重叠宽高分别由交集边界计算，若为负则按 0 处理。
-
-```java
-class Solution {
-    public int computeArea(int ax1, int ay1, int ax2, int ay2, int bx1, int by1, int bx2, int by2) {
-        int area1 = (ax2 - ax1) * (ay2 - ay1);
-        int area2 = (bx2 - bx1) * (by2 - by1);
-        int w = Math.max(0, Math.min(ax2, bx2) - Math.max(ax1, bx1));
-        int h = Math.max(0, Math.min(ay2, by2) - Math.max(ay1, by1));
-        return area1 + area2 - w * h;
-    }
-}
-```
-
-**基础语法与思想：** 一维区间交集长度模板是 `min(right) - max(left)`。
-
-### 224. 基本计算器
-
-**基础解法：** 递归处理括号内表达式，遇到 `)` 返回当前结果。
-
-**资深解法：** 栈保存括号前的结果和符号，扫描一次完成加减与括号。
-
-```java
-class Solution {
-    public int calculate(String s) {
-        Deque<Integer> stack = new ArrayDeque<>();
-        int ans = 0, sign = 1, n = s.length();
-        for (int i = 0; i < n; i++) {
-            char c = s.charAt(i);
-            if (Character.isDigit(c)) {
-                int num = 0;
-                while (i < n && Character.isDigit(s.charAt(i))) num = num * 10 + s.charAt(i++) - '0';
-                i--;
-                ans += sign * num;
-            } else if (c == '+') sign = 1;
-            else if (c == '-') sign = -1;
-            else if (c == '(') {
-                stack.push(ans);
-                stack.push(sign);
-                ans = 0;
-                sign = 1;
-            } else if (c == ')') {
-                ans = stack.pop() * ans + stack.pop();
-            }
-        }
-        return ans;
-    }
-}
-```
-
-**基础语法与思想：** 栈里先放旧结果再放旧符号；遇到右括号时恢复上下文。
-
-### 225. 用队列实现栈
-
-**基础解法：** 两个队列搬运元素，让最后入队的元素先出。
-
-**资深解法：** 一个队列，入队后把前面的元素轮转到队尾，使队头始终是栈顶。
-
-```java
-class MyStack {
-    private Queue<Integer> q = new ArrayDeque<>();
-
-    public void push(int x) {
-        q.offer(x);
-        for (int i = 0, n = q.size(); i < n - 1; i++) q.offer(q.poll());
-    }
-
-    public int pop() { return q.poll(); }
-    public int top() { return q.peek(); }
-    public boolean empty() { return q.isEmpty(); }
-}
-```
-
-**基础语法与思想：** 队列 FIFO，通过旋转队列模拟 LIFO。
-
-### 226. 翻转二叉树
-
-**基础解法：** 递归交换每个节点的左右子树。
-
-**资深解法：** BFS/DFS 迭代也可；递归最短且结构清晰。
-
-```java
-class Solution {
-    public TreeNode invertTree(TreeNode root) {
-        if (root == null) return null;
-        TreeNode left = invertTree(root.left);
-        TreeNode right = invertTree(root.right);
-        root.left = right;
-        root.right = left;
-        return root;
-    }
-}
-```
-
-**基础语法与思想：** 树问题常用“处理左右子树后回到当前节点”的递归模型。
-
-### 227. 基本计算器 II
-
-**基础解法：** 栈保存每段带符号数字，遇到乘除立即合并栈顶。
-
-**资深解法：** 只用 `last` 保存上一段乘除链的值，`ans` 保存已确定的加减结果。
-
-```java
-class Solution {
-    public int calculate(String s) {
-        int ans = 0, last = 0, num = 0;
-        char op = '+';
-        for (int i = 0; i <= s.length(); i++) {
-            char c = i == s.length() ? '+' : s.charAt(i);
-            if (i < s.length() && c == ' ') continue;
-            if (i < s.length() && Character.isDigit(c)) {
-                num = num * 10 + c - '0';
-            } else {
-                if (op == '+') { ans += last; last = num; }
-                else if (op == '-') { ans += last; last = -num; }
-                else if (op == '*') last *= num;
-                else if (op == '/') last /= num;
-                op = c;
-                num = 0;
-            }
-        }
-        return ans + last;
-    }
-}
-```
-
-**基础语法与思想：** 乘除优先级通过延迟把 `last` 加入总和实现。
-
-### 228. 汇总区间
-
-**基础解法：** 双指针找到每段连续区间，单点和范围分别格式化。
-
-**资深解法：** 一次扫描，每段起点固定，终点尽量向右扩展。
-
-```java
-class Solution {
-    public List<String> summaryRanges(int[] nums) {
-        List<String> ans = new ArrayList<>();
-        for (int i = 0; i < nums.length; i++) {
-            int start = nums[i];
-            while (i + 1 < nums.length && nums[i + 1] == nums[i] + 1) i++;
-            if (start == nums[i]) ans.add(String.valueOf(start));
-            else ans.add(start + "->" + nums[i]);
-        }
-        return ans;
-    }
-}
-```
-
-**基础语法与思想：** `String.valueOf` 生成单点字符串；连续段判断只需看相邻差为 1。
-
-### 229. 多数元素 II
-
-**基础解法：** 哈希表计数，找出现次数大于 `n/3` 的元素。
-
-**资深解法：** Boyer-Moore 扩展，最多只有两个超过 `n/3` 的候选。
-
-```java
-class Solution {
-    public List<Integer> majorityElement(int[] nums) {
-        int a = 0, b = 1, ca = 0, cb = 0;
-        for (int x : nums) {
-            if (x == a) ca++;
-            else if (x == b) cb++;
-            else if (ca == 0) { a = x; ca = 1; }
-            else if (cb == 0) { b = x; cb = 1; }
-            else { ca--; cb--; }
-        }
-        ca = cb = 0;
-        for (int x : nums) {
-            if (x == a) ca++;
-            else if (x == b) cb++;
-        }
-        List<Integer> ans = new ArrayList<>();
-        if (ca > nums.length / 3) ans.add(a);
-        if (cb > nums.length / 3) ans.add(b);
-        return ans;
-    }
-}
-```
-
-**基础语法与思想：** 候选阶段后必须二次计数验证，因为题目不保证答案存在。
-
-### 230. 二叉搜索树中第 K 小的元素
-
-**基础解法：** 中序遍历收集列表后取第 `k` 个。
-
-**资深解法：** 迭代中序，访问到第 `k` 个节点立即返回。
-
-```java
-class Solution {
-    public int kthSmallest(TreeNode root, int k) {
-        Deque<TreeNode> stack = new ArrayDeque<>();
-        while (root != null || !stack.isEmpty()) {
-            while (root != null) {
-                stack.push(root);
-                root = root.left;
-            }
-            root = stack.pop();
-            if (--k == 0) return root.val;
-            root = root.right;
-        }
-        return -1;
-    }
-}
-```
-
-**基础语法与思想：** BST 中序有序；显式栈模拟递归左根右。
-
-### 231. 2 的幂
-
-**基础解法：** 不断除以 2，最后是否等于 1。
-
-**资深解法：** 正的 2 的幂二进制只有一个 1。
-
-```java
-class Solution {
-    public boolean isPowerOfTwo(int n) {
-        return n > 0 && (n & (n - 1)) == 0;
-    }
-}
-```
-
-**基础语法与思想：** `n & (n - 1)` 删除最低位的 1。
-
-### 232. 用栈实现队列
-
-**基础解法：** 每次 `push` 时搬运两个栈，让输出栈顶是队头。
-
-**资深解法：** 懒搬运：输入栈收元素，只有输出栈为空时才整体倒过去。
-
-```java
-class MyQueue {
-    private Deque<Integer> in = new ArrayDeque<>();
-    private Deque<Integer> out = new ArrayDeque<>();
-
-    public void push(int x) { in.push(x); }
-    public int pop() { move(); return out.pop(); }
-    public int peek() { move(); return out.peek(); }
-    public boolean empty() { return in.isEmpty() && out.isEmpty(); }
-
-    private void move() {
-        if (out.isEmpty()) while (!in.isEmpty()) out.push(in.pop());
-    }
-}
-```
-
-**基础语法与思想：** 两次栈反转恢复队列 FIFO 顺序；均摊 `O(1)`。
-
-### 233. 数字 1 的个数
-
-**基础解法：** 枚举 1 到 n 并逐位统计 1，时间较高。
-
-**资深解法：** 按每一位的高位、当前位、低位贡献统计。
-
-```java
-class Solution {
-    public int countDigitOne(int n) {
-        long factor = 1;
-        int ans = 0;
-        while (factor <= n) {
-            long high = n / (factor * 10);
-            long cur = (n / factor) % 10;
-            long low = n % factor;
-            if (cur == 0) ans += high * factor;
-            else if (cur == 1) ans += high * factor + low + 1;
-            else ans += (high + 1) * factor;
-            factor *= 10;
-        }
-        return ans;
-    }
-}
-```
-
-**基础语法与思想：** `long factor` 防止乘 10 溢出；数位 DP 常按位贡献拆分。
-
-### 234. 回文链表
-
-**基础解法：** 把链表值放入数组后双指针判断回文。
-
-**资深解法：** 快慢指针找中点，反转后半段，再逐个比较。
-
-```java
-class Solution {
-    public boolean isPalindrome(ListNode head) {
-        ListNode slow = head, fast = head;
-        while (fast != null && fast.next != null) {
-            slow = slow.next;
-            fast = fast.next.next;
-        }
-        ListNode second = reverse(slow);
-        while (second != null) {
-            if (head.val != second.val) return false;
-            head = head.next;
-            second = second.next;
-        }
-        return true;
-    }
-
-    private ListNode reverse(ListNode head) {
-        ListNode prev = null;
-        while (head != null) {
-            ListNode next = head.next;
-            head.next = prev;
-            prev = head;
-            head = next;
-        }
-        return prev;
-    }
-}
-```
-
-**基础语法与思想：** 后半段反转后可线性比较；若需要保持原链表，可最后再反转回来。
-
-### 235. 二叉搜索树的最近公共祖先
-
-**基础解法：** 分别记录根到两个节点的路径，再找最后一个相同节点。
-
-**资深解法：** 利用 BST 有序性：两个值都小于当前节点就向左，都大于就向右，否则当前节点是 LCA。
-
-```java
-class Solution {
-    public TreeNode lowestCommonAncestor(TreeNode root, TreeNode p, TreeNode q) {
-        while (root != null) {
-            if (p.val < root.val && q.val < root.val) root = root.left;
-            else if (p.val > root.val && q.val > root.val) root = root.right;
-            else return root;
-        }
-        return null;
-    }
-}
-```
-
-**基础语法与思想：** BST 的左右子树值域能直接决定搜索方向。
-
-### 236. 二叉树的最近公共祖先
-
-**基础解法：** 建父指针表，从一个节点向上走并用集合记录祖先。
-
-**资深解法：** 后序递归，左右子树分别找到目标时当前节点就是 LCA。
-
-```java
-class Solution {
-    public TreeNode lowestCommonAncestor(TreeNode root, TreeNode p, TreeNode q) {
-        if (root == null || root == p || root == q) return root;
-        TreeNode left = lowestCommonAncestor(root.left, p, q);
-        TreeNode right = lowestCommonAncestor(root.right, p, q);
-        if (left != null && right != null) return root;
-        return left != null ? left : right;
-    }
-}
-```
-
-**基础语法与思想：** 递归返回“当前子树是否含目标以及找到的祖先”。
-
-### 237. 删除链表中的节点
-
-**基础解法：** 若有头节点，可找到前驱后删除；本题只给待删节点，不能访问前驱。
-
-**资深解法：** 把下一个节点的值复制到当前节点，再删除下一个节点。
-
-```java
-class Solution {
-    public void deleteNode(ListNode node) {
-        node.val = node.next.val;
-        node.next = node.next.next;
-    }
-}
-```
-
-**基础语法与思想：** 本题保证待删节点不是尾节点；删除的是“下一个节点的实体”，但效果等价。
-
-### 238. 除了自身以外数组的乘积
-
-**基础解法：** 对每个位置计算左侧乘积和右侧乘积，使用两个额外数组。
-
-**资深解法：** 答案数组先存前缀积，再用一个变量从右向左累乘后缀积。
-
-```java
-class Solution {
-    public int[] productExceptSelf(int[] nums) {
-        int n = nums.length;
-        int[] ans = new int[n];
-        ans[0] = 1;
-        for (int i = 1; i < n; i++) ans[i] = ans[i - 1] * nums[i - 1];
-        int right = 1;
-        for (int i = n - 1; i >= 0; i--) {
-            ans[i] *= right;
-            right *= nums[i];
-        }
-        return ans;
-    }
-}
-```
-
-**基础语法与思想：** 不使用除法；当前位置答案等于左侧所有数乘右侧所有数。
-
-### 239. 滑动窗口最大值
-
-**基础解法：** 每个窗口遍历求最大值，时间 `O(nk)`。
-
-**资深解法：** 单调队列保存下标，队首始终是当前窗口最大值。
-
-```java
-class Solution {
-    public int[] maxSlidingWindow(int[] nums, int k) {
-        int[] ans = new int[nums.length - k + 1];
-        Deque<Integer> dq = new ArrayDeque<>();
-        for (int i = 0; i < nums.length; i++) {
-            while (!dq.isEmpty() && dq.peekFirst() <= i - k) dq.pollFirst();
-            while (!dq.isEmpty() && nums[dq.peekLast()] <= nums[i]) dq.pollLast();
-            dq.offerLast(i);
-            if (i >= k - 1) ans[i - k + 1] = nums[dq.peekFirst()];
-        }
-        return ans;
-    }
-}
-```
-
-**基础语法与思想：** 队列中下标对应的值保持递减；过期下标从队首移除。
-
-### 240. 搜索二维矩阵 II
-
-**基础解法：** 对每一行二分搜索目标，时间 `O(m log n)`。
-
-**资深解法：** 从右上角出发，当前值大于目标则左移，小于目标则下移。
 
 ```java
 class Solution {
@@ -1902,4 +2753,9 @@ class Solution {
 }
 ```
 
-**基础语法与思想：** 右上角同时是所在行较大值、所在列较小值，能单调排除一行或一列。
+
+#### 基础语法与算法思想
+
+- 右上角同时是所在行较大值、所在列较小值，能单调排除一行或一列。
+
+---

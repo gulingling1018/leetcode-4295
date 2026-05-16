@@ -29,6 +29,89 @@
 
  `1 <= n <= 105`
 
+### Java 解法补充
+
+#### 基础解法：按定义生成字符串
+
+算法思想：神奇字符串前缀为 `"122"`。用 `head` 指向当前要读取的组长度，用 `next` 表示下一组要填的字符，按定义不断追加，直到长度达到 `n` 后统计前 `n` 个字符中的 `1`。
+
+```java
+class Solution {
+    public int magicalString(int n) {
+        if (n <= 3) {
+            return 1;
+        }
+
+        StringBuilder s = new StringBuilder("122");
+        int head = 2;
+        char next = '1';
+
+        while (s.length() < n) {
+            int count = s.charAt(head) - '0';
+            for (int i = 0; i < count; i++) {
+                s.append(next);
+            }
+            next = next == '1' ? '2' : '1';
+            head++;
+        }
+
+        int ans = 0;
+        for (int i = 0; i < n; i++) {
+            if (s.charAt(i) == '1') {
+                ans++;
+            }
+        }
+        return ans;
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(n)`。
+
+#### 资深解法：数组生成时同步计数
+
+算法思想：用整型数组代替字符串，`head` 读组长度，`tail` 写新字符。写入时如果字符是 1，就同步更新答案，避免最后再扫一遍。
+
+```java
+class Solution {
+    public int magicalString(int n) {
+        if (n <= 0) return 0;
+        if (n <= 3) return 1;
+
+        int[] s = new int[n + 2];
+        s[0] = 1;
+        s[1] = 2;
+        s[2] = 2;
+
+        int head = 2;
+        int tail = 3;
+        int num = 1;
+        int ans = 1;
+
+        while (tail < n) {
+            int count = s[head++];
+            for (int i = 0; i < count && tail < n; i++) {
+                s[tail++] = num;
+                if (num == 1) {
+                    ans++;
+                }
+            }
+            num = 3 - num;
+        }
+
+        return ans;
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(n)`。
+
+#### 基础语法与算法思想
+
+- `StringBuilder` 适合逐步追加字符。
+- `num = 3 - num` 可以在 1 和 2 之间切换。
+- 核心思想：本题是按“已有内容描述后续生成规则”的自生成序列。
+
 ---
 
 ## 482. 密钥格式化 (Easy)
@@ -60,6 +143,81 @@
  `1 <= s.length <= 105` 
  `s`  只包含字母、数字和破折号  `'-'` .
  `1 <= k <= 104`
+
+### Java 解法补充
+
+#### 基础解法：先清理再分组
+
+算法思想：先删除所有破折号并转大写，再计算第一组长度。第一组可以较短，其余每组固定 `k` 个字符。
+
+```java
+class Solution {
+    public String licenseKeyFormatting(String s, int k) {
+        StringBuilder clean = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c != '-') {
+                clean.append(Character.toUpperCase(c));
+            }
+        }
+
+        if (clean.length() == 0) {
+            return "";
+        }
+
+        int first = clean.length() % k;
+        if (first == 0) {
+            first = k;
+        }
+
+        StringBuilder ans = new StringBuilder();
+        ans.append(clean.substring(0, first));
+        for (int i = first; i < clean.length(); i += k) {
+            ans.append('-');
+            ans.append(clean.substring(i, i + k));
+        }
+        return ans.toString();
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(n)`。
+
+#### 资深解法：从右向左构建后反转
+
+算法思想：从后向前遍历原字符串，每收集 `k` 个有效字符就插入一个破折号。这样天然保证除第一组外每组都是 `k` 个字符，最后反转即可。
+
+```java
+class Solution {
+    public String licenseKeyFormatting(String s, int k) {
+        StringBuilder ans = new StringBuilder();
+        int count = 0;
+
+        for (int i = s.length() - 1; i >= 0; i--) {
+            char c = s.charAt(i);
+            if (c == '-') {
+                continue;
+            }
+            if (count == k) {
+                ans.append('-');
+                count = 0;
+            }
+            ans.append(Character.toUpperCase(c));
+            count++;
+        }
+
+        return ans.reverse().toString();
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(n)`。
+
+#### 基础语法与算法思想
+
+- `Character.toUpperCase(c)` 用于大小写转换。
+- 从右往左处理分组，能避免单独计算第一组长度。
+- 核心思想：固定尾部分组的问题，反向构造通常更简单。
 
 ---
 
@@ -98,11 +256,194 @@
  `n`  的取值范围是  `[3, 1018]` 
  `n`  没有前导 0
 
+### Java 解法补充
+
+#### 基础解法：BigInteger 枚举位数和进制
+
+算法思想：如果 `n` 在 `k` 进制下是若干个 1，那么 `n = 1 + k + k^2 + ... + k^(len-1)`。从较长位数开始尝试，找到的第一个进制最小。用 `BigInteger` 避免溢出。
+
+```java
+import java.math.BigInteger;
+
+class Solution {
+    public String smallestGoodBase(String n) {
+        BigInteger target = new BigInteger(n);
+        int maxLen = target.bitLength();
+
+        for (int len = maxLen; len >= 2; len--) {
+            BigInteger low = BigInteger.valueOf(2);
+            BigInteger high = target.subtract(BigInteger.ONE);
+
+            while (low.compareTo(high) <= 0) {
+                BigInteger mid = low.add(high).shiftRight(1);
+                BigInteger sum = sumOfOnes(mid, len);
+                int cmp = sum.compareTo(target);
+                if (cmp == 0) {
+                    return mid.toString();
+                } else if (cmp < 0) {
+                    low = mid.add(BigInteger.ONE);
+                } else {
+                    high = mid.subtract(BigInteger.ONE);
+                }
+            }
+        }
+
+        return target.subtract(BigInteger.ONE).toString();
+    }
+
+    private BigInteger sumOfOnes(BigInteger base, int len) {
+        BigInteger sum = BigInteger.ZERO;
+        BigInteger cur = BigInteger.ONE;
+        for (int i = 0; i < len; i++) {
+            sum = sum.add(cur);
+            cur = cur.multiply(base);
+        }
+        return sum;
+    }
+}
+```
+
+复杂度：时间 `O(log^3 n)` 级别，空间 `O(log n)`。
+
+#### 资深解法：long 二分和溢出安全求和
+
+算法思想：`n <= 10^18` 可以放入 `long`。对每个位数二分进制，并在计算等比和时一旦会超过目标就提前返回，避免乘法溢出。
+
+```java
+class Solution {
+    public String smallestGoodBase(String n) {
+        long target = Long.parseLong(n);
+        int maxLen = 64 - Long.numberOfLeadingZeros(target);
+
+        for (int len = maxLen; len >= 2; len--) {
+            long low = 2;
+            long high = (long) Math.pow(target, 1.0 / (len - 1)) + 1;
+
+            while (low <= high) {
+                long mid = low + (high - low) / 2;
+                int cmp = compareSum(mid, len, target);
+                if (cmp == 0) {
+                    return Long.toString(mid);
+                } else if (cmp < 0) {
+                    low = mid + 1;
+                } else {
+                    high = mid - 1;
+                }
+            }
+        }
+
+        return Long.toString(target - 1);
+    }
+
+    private int compareSum(long base, int len, long target) {
+        long sum = 1;
+        long cur = 1;
+
+        for (int i = 1; i < len; i++) {
+            if (cur > (target - sum) / base) {
+                return 1;
+            }
+            cur *= base;
+            sum += cur;
+        }
+
+        return Long.compare(sum, target);
+    }
+}
+```
+
+复杂度：时间 `O(log^2 n)` 级别，空间 `O(1)`。
+
+#### 基础语法与算法思想
+
+- 全 1 进制表示等价于等比数列求和。
+- 位数越多，满足条件的进制越小，因此从长位数开始找。
+- 核心思想：最小好进制不是转换字符串逐位试，而是反推等比数列的公比。
+
 ---
 
 ## 484. 寻找排列 (Medium)
 
 暂无内容描述。
+
+### Java 解法补充
+
+#### 基础解法：遇到连续 D 就反转区间
+
+算法思想：先构造升序排列 `1..n+1`。模式串中的 `D` 表示当前位置要下降，连续的一段 `D` 可以通过反转对应区间一次满足。
+
+```java
+class Solution {
+    public int[] findPermutation(String s) {
+        int n = s.length();
+        int[] ans = new int[n + 1];
+        for (int i = 0; i <= n; i++) {
+            ans[i] = i + 1;
+        }
+
+        int i = 0;
+        while (i < n) {
+            if (s.charAt(i) == 'I') {
+                i++;
+                continue;
+            }
+            int start = i;
+            while (i < n && s.charAt(i) == 'D') {
+                i++;
+            }
+            reverse(ans, start, i);
+        }
+
+        return ans;
+    }
+
+    private void reverse(int[] nums, int left, int right) {
+        while (left < right) {
+            int temp = nums[left];
+            nums[left++] = nums[right];
+            nums[right--] = temp;
+        }
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(1)`，不计返回数组。
+
+#### 资深解法：栈延迟输出
+
+算法思想：从 `1` 到 `n + 1` 依次入栈。遇到 `I` 或到达末尾时，把栈中元素全部弹出，连续 `D` 段会自然逆序输出。
+
+```java
+import java.util.ArrayDeque;
+import java.util.Deque;
+
+class Solution {
+    public int[] findPermutation(String s) {
+        int[] ans = new int[s.length() + 1];
+        Deque<Integer> stack = new ArrayDeque<>();
+        int index = 0;
+
+        for (int i = 0; i <= s.length(); i++) {
+            stack.push(i + 1);
+            if (i == s.length() || s.charAt(i) == 'I') {
+                while (!stack.isEmpty()) {
+                    ans[index++] = stack.pop();
+                }
+            }
+        }
+
+        return ans;
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(n)`。
+
+#### 基础语法与算法思想
+
+- `D` 的连续段需要下降，反转升序区间即可得到最小字典序排列。
+- 栈的后进先出可以自然制造局部逆序。
+- 核心思想：排列题先从最小升序数组出发，再按约束做最小改动。
 
 ---
 
@@ -130,6 +471,70 @@
 
  `1 <= nums.length <= 105` 
  `nums[i]`  不是  `0`  就是  `1` .
+
+### Java 解法补充
+
+#### 基础解法：枚举每段连续 1
+
+算法思想：从左到右扫描，遇到 `1` 就继续向右数这一段有多长，遇到 `0` 则跳过。每段结束后更新最大长度。
+
+```java
+class Solution {
+    public int findMaxConsecutiveOnes(int[] nums) {
+        int ans = 0;
+        int i = 0;
+
+        while (i < nums.length) {
+            if (nums[i] == 0) {
+                i++;
+                continue;
+            }
+            int count = 0;
+            while (i < nums.length && nums[i] == 1) {
+                count++;
+                i++;
+            }
+            ans = Math.max(ans, count);
+        }
+
+        return ans;
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(1)`。
+
+#### 资深解法：滚动计数
+
+算法思想：维护当前连续 1 的长度 `cur`。读到 1 就加一，读到 0 就清零，同时更新最大值。
+
+```java
+class Solution {
+    public int findMaxConsecutiveOnes(int[] nums) {
+        int ans = 0;
+        int cur = 0;
+
+        for (int num : nums) {
+            if (num == 1) {
+                cur++;
+                ans = Math.max(ans, cur);
+            } else {
+                cur = 0;
+            }
+        }
+
+        return ans;
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(1)`。
+
+#### 基础语法与算法思想
+
+- 增强 `for` 适合只读遍历数组。
+- 连续段问题常用一个当前计数器和一个最大值。
+- 核心思想：遇到不满足连续条件的元素，就重置当前状态。
 
 ---
 
@@ -165,11 +570,143 @@
  `1 <= nums.length <= 20` 
  `0 <= nums[i] <= 107`
 
+### Java 解法补充
+
+#### 基础解法：递归模拟双方最优
+
+算法思想：定义递归返回当前玩家在区间 `[left, right]` 内最多能比对手多拿多少分。当前玩家可以拿左端或右端，拿完之后角色交换，所以要减去对手在剩余区间能获得的优势。
+
+```java
+class Solution {
+    public boolean predictTheWinner(int[] nums) {
+        return scoreDiff(nums, 0, nums.length - 1) >= 0;
+    }
+
+    private int scoreDiff(int[] nums, int left, int right) {
+        if (left == right) {
+            return nums[left];
+        }
+
+        int takeLeft = nums[left] - scoreDiff(nums, left + 1, right);
+        int takeRight = nums[right] - scoreDiff(nums, left, right - 1);
+        return Math.max(takeLeft, takeRight);
+    }
+}
+```
+
+复杂度：时间 `O(2^n)`，空间 `O(n)`。
+
+#### 资深解法：区间 DP
+
+算法思想：`dp[left][right]` 表示当前玩家在这个区间能取得的最大分差。状态转移和递归一致，但自底向上计算，避免重复子问题。
+
+```java
+class Solution {
+    public boolean predictTheWinner(int[] nums) {
+        int n = nums.length;
+        int[][] dp = new int[n][n];
+
+        for (int i = 0; i < n; i++) {
+            dp[i][i] = nums[i];
+        }
+
+        for (int len = 2; len <= n; len++) {
+            for (int left = 0; left + len <= n; left++) {
+                int right = left + len - 1;
+                int takeLeft = nums[left] - dp[left + 1][right];
+                int takeRight = nums[right] - dp[left][right - 1];
+                dp[left][right] = Math.max(takeLeft, takeRight);
+            }
+        }
+
+        return dp[0][n - 1] >= 0;
+    }
+}
+```
+
+复杂度：时间 `O(n^2)`，空间 `O(n^2)`。
+
+#### 基础语法与算法思想
+
+- “当前玩家分数 - 对手分数”可以把双人博弈简化成一个分差状态。
+- 区间 DP 通常按长度从小到大填表。
+- 核心思想：双方都最优时，当前选择要考虑下一回合对手也会最大化自己的优势。
+
 ---
 
 ## 487. 最大连续1的个数 II (Medium)
 
 暂无内容描述。
+
+### Java 解法补充
+
+#### 基础解法：尝试翻转每个 0
+
+算法思想：枚举每个位置作为被翻转的 0，然后向左、向右统计连续 1 的长度。如果当前位置本来就是 1，也可以把它作为不翻转时的连续段起点处理。
+
+```java
+class Solution {
+    public int findMaxConsecutiveOnes(int[] nums) {
+        int ans = 0;
+
+        for (int i = 0; i < nums.length; i++) {
+            int count = 0;
+            int zeros = 0;
+            for (int j = i; j < nums.length; j++) {
+                if (nums[j] == 0) {
+                    zeros++;
+                }
+                if (zeros > 1) {
+                    break;
+                }
+                count++;
+            }
+            ans = Math.max(ans, count);
+        }
+
+        return ans;
+    }
+}
+```
+
+复杂度：时间 `O(n^2)`，空间 `O(1)`。
+
+#### 资深解法：最多包含一个 0 的滑动窗口
+
+算法思想：维护一个窗口，窗口内最多有一个 0。右边界持续扩张；当 0 的数量超过 1 时，移动左边界直到窗口重新合法。
+
+```java
+class Solution {
+    public int findMaxConsecutiveOnes(int[] nums) {
+        int left = 0;
+        int zeros = 0;
+        int ans = 0;
+
+        for (int right = 0; right < nums.length; right++) {
+            if (nums[right] == 0) {
+                zeros++;
+            }
+            while (zeros > 1) {
+                if (nums[left] == 0) {
+                    zeros--;
+                }
+                left++;
+            }
+            ans = Math.max(ans, right - left + 1);
+        }
+
+        return ans;
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(1)`。
+
+#### 基础语法与算法思想
+
+- “最多翻转一个 0” 等价于窗口内最多允许一个 0。
+- 滑动窗口适合处理连续区间长度最大化问题。
+- 核心思想：右边界负责扩张答案，左边界负责恢复约束。
 
 ---
 
@@ -242,17 +779,374 @@
  `board`  和  `hand`  由字符  `'R'` 、 `'Y'` 、 `'B'` 、 `'G'`  和  `'W'`  组成
 桌面上一开始的球中，不会有三个及三个以上颜色相同且连着的球
 
+### Java 解法补充
+
+#### 基础解法：枚举插入位置回溯
+
+算法思想：每一步从手牌中选一颗球，插入桌面任意位置，然后执行连续消除。递归尝试所有可能，取清空桌面需要的最小步数。
+
+```java
+import java.util.Arrays;
+
+class Solution {
+    private static final int INF = 1_000_000;
+
+    public int findMinStep(String board, String hand) {
+        char[] balls = hand.toCharArray();
+        Arrays.sort(balls);
+        boolean[] used = new boolean[balls.length];
+        int ans = dfs(board, balls, used);
+        return ans >= INF ? -1 : ans;
+    }
+
+    private int dfs(String board, char[] balls, boolean[] used) {
+        if (board.length() == 0) {
+            return 0;
+        }
+
+        int ans = INF;
+        for (int i = 0; i < balls.length; i++) {
+            if (used[i] || (i > 0 && balls[i] == balls[i - 1] && !used[i - 1])) {
+                continue;
+            }
+            used[i] = true;
+            for (int pos = 0; pos <= board.length(); pos++) {
+                String next = shrink(board.substring(0, pos) + balls[i] + board.substring(pos));
+                int rest = dfs(next, balls, used);
+                if (rest != INF) {
+                    ans = Math.min(ans, rest + 1);
+                }
+            }
+            used[i] = false;
+        }
+
+        return ans;
+    }
+
+    private String shrink(String s) {
+        for (int i = 0; i < s.length();) {
+            int j = i;
+            while (j < s.length() && s.charAt(j) == s.charAt(i)) {
+                j++;
+            }
+            if (j - i >= 3) {
+                return shrink(s.substring(0, i) + s.substring(j));
+            }
+            i = j;
+        }
+        return s;
+    }
+}
+```
+
+复杂度：时间指数级，空间 `O(hand.length + board.length)`。
+
+#### 资深解法：按连续段消除并记忆化
+
+算法思想：与其枚举所有插入位置，不如枚举桌面上的连续同色段。若某段还差 `need` 个球就能消除，且手牌足够，就直接使用这些球消除该段，并对消除后的桌面递归。状态用桌面字符串和手牌计数记忆化。
+
+```java
+import java.util.HashMap;
+import java.util.Map;
+
+class Solution {
+    private static final int INF = 1_000_000;
+    private final Map<String, Integer> memo = new HashMap<>();
+
+    public int findMinStep(String board, String hand) {
+        int[] count = new int[128];
+        for (int i = 0; i < hand.length(); i++) {
+            count[hand.charAt(i)]++;
+        }
+        int ans = dfs(board, count);
+        return ans >= INF ? -1 : ans;
+    }
+
+    private int dfs(String board, int[] count) {
+        board = shrink(board);
+        if (board.length() == 0) {
+            return 0;
+        }
+
+        String key = board + "#" + count['R'] + "," + count['Y'] + "," +
+                count['B'] + "," + count['G'] + "," + count['W'];
+        if (memo.containsKey(key)) {
+            return memo.get(key);
+        }
+
+        int ans = INF;
+        for (int i = 0; i < board.length();) {
+            int j = i;
+            while (j < board.length() && board.charAt(j) == board.charAt(i)) {
+                j++;
+            }
+
+            char color = board.charAt(i);
+            int need = 3 - (j - i);
+            if (count[color] >= need) {
+                count[color] -= need;
+                int rest = dfs(board.substring(0, i) + board.substring(j), count);
+                if (rest != INF) {
+                    ans = Math.min(ans, need + rest);
+                }
+                count[color] += need;
+            }
+            i = j;
+        }
+
+        memo.put(key, ans);
+        return ans;
+    }
+
+    private String shrink(String s) {
+        for (int i = 0; i < s.length();) {
+            int j = i;
+            while (j < s.length() && s.charAt(j) == s.charAt(i)) {
+                j++;
+            }
+            if (j - i >= 3) {
+                return shrink(s.substring(0, i) + s.substring(j));
+            }
+            i = j;
+        }
+        return s;
+    }
+}
+```
+
+复杂度：状态数有限但仍为指数级，记忆化后实际性能更稳定；空间取决于状态数量。
+
+#### 基础语法与算法思想
+
+- `substring(0, i) + substring(j)` 表示删除 `[i, j)` 这一段。
+- 递归消除函数要反复执行，直到没有长度大于等于 3 的连续段。
+- 核心思想：搜索题要尽量把动作抽象成“有意义的状态变化”，并用记忆化缓存重复状态。
+
 ---
 
 ## 489. 扫地机器人 (Hard)
 
 暂无内容描述。
 
+### Java 解法补充
+
+#### 基础解法：DFS 回溯清扫可达区域
+
+算法思想：机器人不知道地图，只能通过 `move()` 探测。把起点当作 `(0,0)`，用方向数组记录相对坐标；每进入一个新格子就清扫，并尝试四个方向。递归返回时要让机器人回到进入前的位置和朝向。
+
+```java
+import java.util.HashSet;
+import java.util.Set;
+
+interface Robot {
+    boolean move();
+    void turnLeft();
+    void turnRight();
+    void clean();
+}
+
+class Solution {
+    private final int[][] dirs = {{-1, 0}, {0, 1}, {1, 0}, {0, -1}};
+    private final Set<String> visited = new HashSet<>();
+
+    public void cleanRoom(Robot robot) {
+        dfs(robot, 0, 0, 0);
+    }
+
+    private void dfs(Robot robot, int row, int col, int dir) {
+        visited.add(row + "," + col);
+        robot.clean();
+
+        for (int i = 0; i < 4; i++) {
+            int nextDir = (dir + i) % 4;
+            int nextRow = row + dirs[nextDir][0];
+            int nextCol = col + dirs[nextDir][1];
+            String key = nextRow + "," + nextCol;
+
+            if (!visited.contains(key) && robot.move()) {
+                dfs(robot, nextRow, nextCol, nextDir);
+                goBack(robot);
+            }
+            robot.turnRight();
+        }
+    }
+
+    private void goBack(Robot robot) {
+        robot.turnRight();
+        robot.turnRight();
+        robot.move();
+        robot.turnRight();
+        robot.turnRight();
+    }
+}
+```
+
+复杂度：时间 `O(cells)`，空间 `O(cells)`，`cells` 为可达空格数量。
+
+#### 资深解法：封装坐标编码和方向回溯
+
+算法思想：生产实现中把坐标编码、回退动作和方向遍历拆清楚，减少机器人朝向错乱的风险。每次循环结束都右转一次，保证四次循环后恢复原朝向。
+
+```java
+import java.util.HashSet;
+import java.util.Set;
+
+class Solution {
+    private static final int[][] DIRECTIONS = {{-1, 0}, {0, 1}, {1, 0}, {0, -1}};
+    private final Set<Long> visited = new HashSet<>();
+
+    public void cleanRoom(Robot robot) {
+        backtrack(robot, 0, 0, 0);
+    }
+
+    private void backtrack(Robot robot, int row, int col, int direction) {
+        visited.add(encode(row, col));
+        robot.clean();
+
+        for (int turn = 0; turn < 4; turn++) {
+            int nextDirection = (direction + turn) % 4;
+            int nextRow = row + DIRECTIONS[nextDirection][0];
+            int nextCol = col + DIRECTIONS[nextDirection][1];
+            long key = encode(nextRow, nextCol);
+
+            if (!visited.contains(key) && robot.move()) {
+                backtrack(robot, nextRow, nextCol, nextDirection);
+                moveBack(robot);
+            }
+            robot.turnRight();
+        }
+    }
+
+    private long encode(int row, int col) {
+        return (((long) row) << 32) ^ (col & 0xffffffffL);
+    }
+
+    private void moveBack(Robot robot) {
+        robot.turnRight();
+        robot.turnRight();
+        robot.move();
+        robot.turnRight();
+        robot.turnRight();
+    }
+}
+```
+
+复杂度：时间 `O(cells)`，空间 `O(cells)`。
+
+#### 基础语法与算法思想
+
+- 机器人 API 是相对移动，没有全局地图，需要自己维护相对坐标。
+- 回溯不只要返回递归，还要把实体机器人移动回父节点。
+- 核心思想：未知地图探索可以看作 DFS，`move()` 的返回值就是边是否可走。
+
 ---
 
 ## 490. 迷宫 (Medium)
 
 暂无内容描述。
+
+### Java 解法补充
+
+#### 基础解法：DFS 滚动到停点
+
+算法思想：球不是走一格停一格，而是沿一个方向一直滚到撞墙才停。DFS 每次从停点出发，尝试四个方向滚到新的停点。
+
+```java
+class Solution {
+    private final int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+
+    public boolean hasPath(int[][] maze, int[] start, int[] destination) {
+        boolean[][] visited = new boolean[maze.length][maze[0].length];
+        return dfs(maze, start[0], start[1], destination, visited);
+    }
+
+    private boolean dfs(int[][] maze, int row, int col, int[] dest, boolean[][] visited) {
+        if (visited[row][col]) {
+            return false;
+        }
+        if (row == dest[0] && col == dest[1]) {
+            return true;
+        }
+
+        visited[row][col] = true;
+        for (int[] dir : dirs) {
+            int nextRow = row;
+            int nextCol = col;
+            while (canMove(maze, nextRow + dir[0], nextCol + dir[1])) {
+                nextRow += dir[0];
+                nextCol += dir[1];
+            }
+            if (dfs(maze, nextRow, nextCol, dest, visited)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean canMove(int[][] maze, int row, int col) {
+        return row >= 0 && row < maze.length &&
+                col >= 0 && col < maze[0].length &&
+                maze[row][col] == 0;
+    }
+}
+```
+
+复杂度：时间 `O(mn * max(m, n))`，空间 `O(mn)`。
+
+#### 资深解法：BFS 遍历停点图
+
+算法思想：把每个能停下来的位置当作图节点，四个滚动方向产生边。用队列 BFS，避免递归深度风险，也更贴近服务端常规图搜索实现。
+
+```java
+import java.util.ArrayDeque;
+import java.util.Queue;
+
+class Solution {
+    private static final int[][] DIRS = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+
+    public boolean hasPath(int[][] maze, int[] start, int[] destination) {
+        int m = maze.length;
+        int n = maze[0].length;
+        boolean[][] visited = new boolean[m][n];
+        Queue<int[]> queue = new ArrayDeque<>();
+
+        queue.offer(start);
+        visited[start[0]][start[1]] = true;
+
+        while (!queue.isEmpty()) {
+            int[] cur = queue.poll();
+            if (cur[0] == destination[0] && cur[1] == destination[1]) {
+                return true;
+            }
+
+            for (int[] dir : DIRS) {
+                int row = cur[0];
+                int col = cur[1];
+                while (row + dir[0] >= 0 && row + dir[0] < m &&
+                        col + dir[1] >= 0 && col + dir[1] < n &&
+                        maze[row + dir[0]][col + dir[1]] == 0) {
+                    row += dir[0];
+                    col += dir[1];
+                }
+                if (!visited[row][col]) {
+                    visited[row][col] = true;
+                    queue.offer(new int[]{row, col});
+                }
+            }
+        }
+
+        return false;
+    }
+}
+```
+
+复杂度：时间 `O(mn * max(m, n))`，空间 `O(mn)`。
+
+#### 基础语法与算法思想
+
+- 本题的节点是“停下的位置”，不是滚动经过的每个格子。
+- `Queue<int[]>` 是 BFS 的常见写法。
+- 核心思想：移动规则特殊时，先定义清楚图的节点和边，再套 DFS/BFS。
 
 ---
 
@@ -280,6 +1174,100 @@
 
  `1 <= nums.length <= 15` 
  `-100 <= nums[i] <= 100`
+
+### Java 解法补充
+
+#### 基础解法：枚举所有子序列并去重
+
+算法思想：数组长度最多 15，可以用二进制掩码枚举所有非空子序列。对长度至少为 2 且非递减的序列放入集合去重。
+
+```java
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+class Solution {
+    public List<List<Integer>> findSubsequences(int[] nums) {
+        Set<List<Integer>> seen = new HashSet<>();
+        int total = 1 << nums.length;
+
+        for (int mask = 0; mask < total; mask++) {
+            List<Integer> path = new ArrayList<>();
+            for (int i = 0; i < nums.length; i++) {
+                if (((mask >> i) & 1) == 1) {
+                    path.add(nums[i]);
+                }
+            }
+            if (path.size() >= 2 && nonDecreasing(path)) {
+                seen.add(path);
+            }
+        }
+
+        return new ArrayList<>(seen);
+    }
+
+    private boolean nonDecreasing(List<Integer> path) {
+        for (int i = 1; i < path.size(); i++) {
+            if (path.get(i) < path.get(i - 1)) {
+                return false;
+            }
+        }
+        return true;
+    }
+}
+```
+
+复杂度：时间 `O(2^n * n)`，空间 `O(ans * n)`。
+
+#### 资深解法：回溯加层级去重
+
+算法思想：从左到右选择元素，保证新元素不小于路径最后一个元素。每一层用一个集合记录已经尝试过的数，避免同层选择重复值导致重复序列。
+
+```java
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+class Solution {
+    private final List<List<Integer>> ans = new ArrayList<>();
+
+    public List<List<Integer>> findSubsequences(int[] nums) {
+        backtrack(nums, 0, new ArrayList<>());
+        return ans;
+    }
+
+    private void backtrack(int[] nums, int start, List<Integer> path) {
+        if (path.size() >= 2) {
+            ans.add(new ArrayList<>(path));
+        }
+
+        Set<Integer> used = new HashSet<>();
+        for (int i = start; i < nums.length; i++) {
+            if (used.contains(nums[i])) {
+                continue;
+            }
+            if (!path.isEmpty() && nums[i] < path.get(path.size() - 1)) {
+                continue;
+            }
+
+            used.add(nums[i]);
+            path.add(nums[i]);
+            backtrack(nums, i + 1, path);
+            path.remove(path.size() - 1);
+        }
+    }
+}
+```
+
+复杂度：时间 `O(2^n * n)`，空间 `O(n)`，不计答案空间。
+
+#### 基础语法与算法思想
+
+- 子序列保持原数组相对顺序，不能排序后再选。
+- 回溯中的同层去重可以避免重复答案，同时不影响不同位置形成的合法扩展。
+- 核心思想：非递减约束只需要和路径最后一个元素比较。
 
 ---
 
@@ -321,6 +1309,59 @@
 
  `1 <= area <= 107`
 
+### Java 解法补充
+
+#### 基础解法：枚举所有宽度
+
+算法思想：枚举所有可能的宽度 `w`，如果能整除面积，就得到一个矩形 `(area / w, w)`。在满足 `L >= W` 的方案里选择差值最小的。
+
+```java
+class Solution {
+    public int[] constructRectangle(int area) {
+        int bestL = area;
+        int bestW = 1;
+
+        for (int w = 1; w <= area; w++) {
+            if (area % w == 0) {
+                int l = area / w;
+                if (l >= w && l - w < bestL - bestW) {
+                    bestL = l;
+                    bestW = w;
+                }
+            }
+        }
+
+        return new int[]{bestL, bestW};
+    }
+}
+```
+
+复杂度：时间 `O(area)`，空间 `O(1)`。
+
+#### 资深解法：从平方根向下找因子
+
+算法思想：长宽差最小的矩形最接近正方形，因此从 `sqrt(area)` 开始向下找第一个能整除的宽度即可。
+
+```java
+class Solution {
+    public int[] constructRectangle(int area) {
+        int width = (int) Math.sqrt(area);
+        while (area % width != 0) {
+            width--;
+        }
+        return new int[]{area / width, width};
+    }
+}
+```
+
+复杂度：时间 `O(sqrt(area))`，空间 `O(1)`。
+
+#### 基础语法与算法思想
+
+- `area % width == 0` 表示 `width` 是面积的因子。
+- `Math.sqrt(area)` 返回平方根。
+- 核心思想：乘积固定时，两个因子越接近，差值越小。
+
 ---
 
 ## 493. 翻转对 (Hard)
@@ -345,6 +1386,87 @@
 
 给定数组的长度不会超过 `50000` 。
 输入数组中的所有数字都在32位整数的表示范围内。
+
+### Java 解法补充
+
+#### 基础解法：双重循环
+
+算法思想：直接枚举所有 `i < j` 的数对，判断 `nums[i] > 2 * nums[j]` 是否成立。乘 2 时转成 `long`，避免整数溢出。
+
+```java
+class Solution {
+    public int reversePairs(int[] nums) {
+        int ans = 0;
+
+        for (int i = 0; i < nums.length; i++) {
+            for (int j = i + 1; j < nums.length; j++) {
+                if ((long) nums[i] > 2L * nums[j]) {
+                    ans++;
+                }
+            }
+        }
+
+        return ans;
+    }
+}
+```
+
+复杂度：时间 `O(n^2)`，空间 `O(1)`。
+
+#### 资深解法：归并排序计数
+
+算法思想：在归并排序过程中，左右两半都已经有序。对左半每个数，用指针在右半找满足 `left > 2 * right` 的最大范围，累计数量后再正常归并。
+
+```java
+class Solution {
+    public int reversePairs(int[] nums) {
+        int[] temp = new int[nums.length];
+        return mergeSort(nums, 0, nums.length - 1, temp);
+    }
+
+    private int mergeSort(int[] nums, int left, int right, int[] temp) {
+        if (left >= right) {
+            return 0;
+        }
+
+        int mid = left + (right - left) / 2;
+        int ans = mergeSort(nums, left, mid, temp) +
+                mergeSort(nums, mid + 1, right, temp);
+
+        int j = mid + 1;
+        for (int i = left; i <= mid; i++) {
+            while (j <= right && (long) nums[i] > 2L * nums[j]) {
+                j++;
+            }
+            ans += j - (mid + 1);
+        }
+
+        int i = left;
+        j = mid + 1;
+        int k = left;
+        while (i <= mid || j <= right) {
+            if (j > right || (i <= mid && nums[i] <= nums[j])) {
+                temp[k++] = nums[i++];
+            } else {
+                temp[k++] = nums[j++];
+            }
+        }
+        for (i = left; i <= right; i++) {
+            nums[i] = temp[i];
+        }
+
+        return ans;
+    }
+}
+```
+
+复杂度：时间 `O(n log n)`，空间 `O(n)`。
+
+#### 基础语法与算法思想
+
+- `2L * nums[j]` 让乘法按 `long` 计算。
+- 归并排序能在保持有序的同时统计跨左右区间的数对。
+- 核心思想：当右半有序时，满足条件的位置具有单调性，指针只向右移动。
 
 ---
 
@@ -384,6 +1506,68 @@
  `0 <= nums[i] <= 1000` 
  `0 <= sum(nums[i]) <= 1000` 
  `-1000 <= target <= 1000`
+
+### Java 解法补充
+
+#### 基础解法：DFS 枚举正负号
+
+算法思想：每个数字前可以放 `+` 或 `-`，递归枚举所有符号组合。到末尾时判断当前和是否等于目标。
+
+```java
+class Solution {
+    public int findTargetSumWays(int[] nums, int target) {
+        return dfs(nums, 0, 0, target);
+    }
+
+    private int dfs(int[] nums, int index, int sum, int target) {
+        if (index == nums.length) {
+            return sum == target ? 1 : 0;
+        }
+        return dfs(nums, index + 1, sum + nums[index], target) +
+                dfs(nums, index + 1, sum - nums[index], target);
+    }
+}
+```
+
+复杂度：时间 `O(2^n)`，空间 `O(n)`。
+
+#### 资深解法：转换为子集和 DP
+
+算法思想：设加号集合和为 `P`，减号集合和为 `N`，有 `P - N = target` 且 `P + N = sum`，得到 `P = (sum + target) / 2`。问题转成从数组中选若干数凑出 `P` 的方案数。
+
+```java
+class Solution {
+    public int findTargetSumWays(int[] nums, int target) {
+        int sum = 0;
+        for (int num : nums) {
+            sum += num;
+        }
+        if (Math.abs(target) > sum || (sum + target) % 2 != 0) {
+            return 0;
+        }
+
+        int bag = (sum + target) / 2;
+        int[] dp = new int[bag + 1];
+        dp[0] = 1;
+
+        for (int num : nums) {
+            for (int j = bag; j >= num; j--) {
+                dp[j] += dp[j - num];
+            }
+        }
+
+        return dp[bag];
+    }
+}
+```
+
+复杂度：时间 `O(n * sum)`，空间 `O(sum)`。
+
+#### 基础语法与算法思想
+
+- 每个数字只有正负两种选择，天然可以用 DFS。
+- 目标和可以转成“选出一部分数作为正数集合”的背包计数。
+- 核心思想：符号问题常能通过方程变形成子集和问题。
 
 ---
 
@@ -425,6 +1609,64 @@
  `0 <= timeSeries[i], duration <= 107` 
  `timeSeries`  按  **非递减**  顺序排列
 
+### Java 解法补充
+
+#### 基础解法：合并中毒区间
+
+算法思想：每次攻击产生一个区间 `[time, time + duration)`。如果新区间和当前区间重叠，就延长当前结束时间；否则把当前区间长度加入答案并开启新区间。
+
+```java
+class Solution {
+    public int findPoisonedDuration(int[] timeSeries, int duration) {
+        int ans = 0;
+        int start = timeSeries[0];
+        int end = start + duration;
+
+        for (int i = 1; i < timeSeries.length; i++) {
+            int nextStart = timeSeries[i];
+            int nextEnd = nextStart + duration;
+            if (nextStart <= end) {
+                end = Math.max(end, nextEnd);
+            } else {
+                ans += end - start;
+                start = nextStart;
+                end = nextEnd;
+            }
+        }
+
+        return ans + end - start;
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(1)`。
+
+#### 资深解法：累加相邻攻击贡献
+
+算法思想：相邻两次攻击间隔为 `gap`。如果 `gap < duration`，前一次只贡献 `gap` 秒；否则贡献完整 `duration` 秒。最后一次攻击一定贡献完整时长。
+
+```java
+class Solution {
+    public int findPoisonedDuration(int[] timeSeries, int duration) {
+        int ans = 0;
+
+        for (int i = 1; i < timeSeries.length; i++) {
+            ans += Math.min(duration, timeSeries[i] - timeSeries[i - 1]);
+        }
+
+        return ans + duration;
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(1)`。
+
+#### 基础语法与算法思想
+
+- 用左闭右开区间 `[start, end)` 表示持续时间，长度就是 `end - start`。
+- 非递减时间序列允许只比较相邻攻击。
+- 核心思想：重叠时间不要重复计算，取相邻间隔和持续时间的较小值即可。
+
 ---
 
 ## 496. 下一个更大元素 I (Easy)
@@ -465,6 +1707,78 @@
 
  
  **进阶：** 你可以设计一个时间复杂度为  `O(nums1.length + nums2.length)`  的解决方案吗？
+
+### Java 解法补充
+
+#### 基础解法：按题意逐个查找
+
+算法思想：对 `nums1` 中每个数，先在 `nums2` 中找到它的位置，再继续向右找第一个更大的数。找不到就返回 `-1`。
+
+```java
+class Solution {
+    public int[] nextGreaterElement(int[] nums1, int[] nums2) {
+        int[] ans = new int[nums1.length];
+
+        for (int i = 0; i < nums1.length; i++) {
+            int pos = 0;
+            while (nums2[pos] != nums1[i]) {
+                pos++;
+            }
+
+            ans[i] = -1;
+            for (int j = pos + 1; j < nums2.length; j++) {
+                if (nums2[j] > nums1[i]) {
+                    ans[i] = nums2[j];
+                    break;
+                }
+            }
+        }
+
+        return ans;
+    }
+}
+```
+
+复杂度：时间 `O(nums1.length * nums2.length)`，空间 `O(1)`，不计返回数组。
+
+#### 资深解法：单调栈预处理
+
+算法思想：遍历 `nums2`，用单调递减栈维护还没找到下一个更大元素的数。当前数比栈顶大时，当前数就是栈顶的下一个更大元素，记录到哈希表中。
+
+```java
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.Map;
+
+class Solution {
+    public int[] nextGreaterElement(int[] nums1, int[] nums2) {
+        Map<Integer, Integer> nextGreater = new HashMap<>();
+        Deque<Integer> stack = new ArrayDeque<>();
+
+        for (int num : nums2) {
+            while (!stack.isEmpty() && stack.peek() < num) {
+                nextGreater.put(stack.pop(), num);
+            }
+            stack.push(num);
+        }
+
+        int[] ans = new int[nums1.length];
+        for (int i = 0; i < nums1.length; i++) {
+            ans[i] = nextGreater.getOrDefault(nums1[i], -1);
+        }
+        return ans;
+    }
+}
+```
+
+复杂度：时间 `O(nums1.length + nums2.length)`，空间 `O(nums2.length)`。
+
+#### 基础语法与算法思想
+
+- `Map` 可以把 `nums2` 中每个值映射到它的下一个更大元素。
+- 单调栈适合“右侧第一个更大/更小”这类问题。
+- 核心思想：一个元素一旦遇到右侧第一个更大值，就可以出栈并确定答案。
 
 ---
 
@@ -509,6 +1823,87 @@ solution.pick(); // 返回 [0, 0]
 所有的矩形不重叠。
  `pick`  最多被调用  `104`  次。
 
+### Java 解法补充
+
+#### 基础解法：预生成所有整数点
+
+算法思想：把所有矩形覆盖的整数点都加入列表。因为列表里每个点只出现一次，所以随机取列表下标即可保证每个点等概率。
+
+```java
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+class Solution {
+    private final List<int[]> points = new ArrayList<>();
+    private final Random random = new Random();
+
+    public Solution(int[][] rects) {
+        for (int[] rect : rects) {
+            for (int x = rect[0]; x <= rect[2]; x++) {
+                for (int y = rect[1]; y <= rect[3]; y++) {
+                    points.add(new int[]{x, y});
+                }
+            }
+        }
+    }
+
+    public int[] pick() {
+        return points.get(random.nextInt(points.size()));
+    }
+}
+```
+
+复杂度：初始化时间和空间 `O(totalPoints)`，单次 `pick` 时间 `O(1)`。
+
+#### 资深解法：前缀面积加二分
+
+算法思想：每个矩形包含的整数点数为 `(x2 - x1 + 1) * (y2 - y1 + 1)`。先做点数前缀和，随机选中第几个点，再二分定位矩形，最后在矩形内随机坐标。
+
+```java
+import java.util.Arrays;
+import java.util.Random;
+
+class Solution {
+    private final int[][] rects;
+    private final int[] prefix;
+    private final Random random = new Random();
+
+    public Solution(int[][] rects) {
+        this.rects = rects;
+        this.prefix = new int[rects.length];
+
+        int sum = 0;
+        for (int i = 0; i < rects.length; i++) {
+            int[] r = rects[i];
+            sum += (r[2] - r[0] + 1) * (r[3] - r[1] + 1);
+            prefix[i] = sum;
+        }
+    }
+
+    public int[] pick() {
+        int target = random.nextInt(prefix[prefix.length - 1]) + 1;
+        int index = Arrays.binarySearch(prefix, target);
+        if (index < 0) {
+            index = -index - 1;
+        }
+
+        int[] r = rects[index];
+        int x = r[0] + random.nextInt(r[2] - r[0] + 1);
+        int y = r[1] + random.nextInt(r[3] - r[1] + 1);
+        return new int[]{x, y};
+    }
+}
+```
+
+复杂度：初始化时间 `O(rects.length)`，空间 `O(rects.length)`；单次 `pick` 时间 `O(log rects.length)`。
+
+#### 基础语法与算法思想
+
+- `Random.nextInt(bound)` 返回 `[0, bound)` 的整数。
+- 前缀和可以把按权重随机选择转成一次二分查找。
+- 核心思想：想让每个点等概率，就要按矩形包含的点数作为矩形权重。
+
 ---
 
 ## 498. 对角线遍历 (Medium)
@@ -538,11 +1933,273 @@ solution.pick(); // 返回 [0, 0]
  `1 <= m * n <= 104` 
  `-105 <= mat[i][j] <= 105`
 
+### Java 解法补充
+
+#### 基础解法：按对角线编号收集
+
+算法思想：同一条对角线上的元素满足 `row + col` 相同。按对角线编号收集元素，偶数编号需要反向输出，奇数编号按收集顺序输出。
+
+```java
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+class Solution {
+    public int[] findDiagonalOrder(int[][] mat) {
+        int m = mat.length;
+        int n = mat[0].length;
+        int[] ans = new int[m * n];
+        int index = 0;
+
+        for (int sum = 0; sum <= m + n - 2; sum++) {
+            List<Integer> diagonal = new ArrayList<>();
+            int startRow = Math.max(0, sum - n + 1);
+            int endRow = Math.min(m - 1, sum);
+
+            for (int row = startRow; row <= endRow; row++) {
+                int col = sum - row;
+                diagonal.add(mat[row][col]);
+            }
+
+            if (sum % 2 == 0) {
+                Collections.reverse(diagonal);
+            }
+            for (int value : diagonal) {
+                ans[index++] = value;
+            }
+        }
+
+        return ans;
+    }
+}
+```
+
+复杂度：时间 `O(mn)`，空间 `O(min(m, n))`。
+
+#### 资深解法：方向模拟
+
+算法思想：维护当前位置和方向。向右上走时，如果越过上边界或右边界，就切换方向并修正位置；向左下走时同理。每个元素只访问一次。
+
+```java
+class Solution {
+    public int[] findDiagonalOrder(int[][] mat) {
+        int m = mat.length;
+        int n = mat[0].length;
+        int[] ans = new int[m * n];
+        int row = 0;
+        int col = 0;
+        int direction = 1;
+
+        for (int i = 0; i < ans.length; i++) {
+            ans[i] = mat[row][col];
+
+            if (direction == 1) {
+                if (col == n - 1) {
+                    row++;
+                    direction = -1;
+                } else if (row == 0) {
+                    col++;
+                    direction = -1;
+                } else {
+                    row--;
+                    col++;
+                }
+            } else {
+                if (row == m - 1) {
+                    col++;
+                    direction = 1;
+                } else if (col == 0) {
+                    row++;
+                    direction = 1;
+                } else {
+                    row++;
+                    col--;
+                }
+            }
+        }
+
+        return ans;
+    }
+}
+```
+
+复杂度：时间 `O(mn)`，空间 `O(1)`，不计返回数组。
+
+#### 基础语法与算法思想
+
+- 对角线题常用 `row + col` 分组。
+- 模拟方向时要优先处理边界，否则容易访问越界。
+- 核心思想：先确定遍历顺序的数学规律，再选择分组或直接模拟。
+
 ---
 
 ## 499. 迷宫 III (Hard)
 
 暂无内容描述。
+
+### Java 解法补充
+
+#### 基础解法：优先队列搜索
+
+算法思想：球会一直滚到墙边或洞口。用优先队列按“距离短优先，路径字典序小优先”取状态；第一次取出洞口时就是答案。
+
+```java
+import java.util.PriorityQueue;
+
+class Solution {
+    private static final int[][] DIRS = {{1, 0}, {0, -1}, {0, 1}, {-1, 0}};
+    private static final String[] NAMES = {"d", "l", "r", "u"};
+
+    public String findShortestWay(int[][] maze, int[] ball, int[] hole) {
+        int m = maze.length;
+        int n = maze[0].length;
+        boolean[][] visited = new boolean[m][n];
+        PriorityQueue<Node> pq = new PriorityQueue<>((a, b) -> {
+            if (a.distance != b.distance) return a.distance - b.distance;
+            return a.path.compareTo(b.path);
+        });
+
+        pq.offer(new Node(ball[0], ball[1], 0, ""));
+        while (!pq.isEmpty()) {
+            Node cur = pq.poll();
+            if (visited[cur.row][cur.col]) {
+                continue;
+            }
+            visited[cur.row][cur.col] = true;
+            if (cur.row == hole[0] && cur.col == hole[1]) {
+                return cur.path;
+            }
+
+            for (int i = 0; i < 4; i++) {
+                int row = cur.row;
+                int col = cur.col;
+                int dist = cur.distance;
+                while (row + DIRS[i][0] >= 0 && row + DIRS[i][0] < m &&
+                        col + DIRS[i][1] >= 0 && col + DIRS[i][1] < n &&
+                        maze[row + DIRS[i][0]][col + DIRS[i][1]] == 0) {
+                    row += DIRS[i][0];
+                    col += DIRS[i][1];
+                    dist++;
+                    if (row == hole[0] && col == hole[1]) {
+                        break;
+                    }
+                }
+                pq.offer(new Node(row, col, dist, cur.path + NAMES[i]));
+            }
+        }
+
+        return "impossible";
+    }
+
+    private static class Node {
+        int row;
+        int col;
+        int distance;
+        String path;
+
+        Node(int row, int col, int distance, String path) {
+            this.row = row;
+            this.col = col;
+            this.distance = distance;
+            this.path = path;
+        }
+    }
+}
+```
+
+复杂度：时间 `O(mn log(mn) * max(m, n))`，空间 `O(mn)`。
+
+#### 资深解法：Dijkstra 维护距离和路径
+
+算法思想：显式维护每个停点的最短距离与当前最优字典序路径。只有当新状态更短，或距离相同但路径更小，才更新并入队，避免无意义状态扩张。
+
+```java
+import java.util.Arrays;
+import java.util.PriorityQueue;
+
+class Solution {
+    private static final int[][] DIRS = {{1, 0}, {0, -1}, {0, 1}, {-1, 0}};
+    private static final String[] NAMES = {"d", "l", "r", "u"};
+
+    public String findShortestWay(int[][] maze, int[] ball, int[] hole) {
+        int m = maze.length;
+        int n = maze[0].length;
+        int[][] dist = new int[m][n];
+        String[][] path = new String[m][n];
+        for (int[] row : dist) {
+            Arrays.fill(row, Integer.MAX_VALUE);
+        }
+
+        PriorityQueue<Node> pq = new PriorityQueue<>((a, b) -> {
+            if (a.distance != b.distance) return a.distance - b.distance;
+            return a.path.compareTo(b.path);
+        });
+
+        dist[ball[0]][ball[1]] = 0;
+        path[ball[0]][ball[1]] = "";
+        pq.offer(new Node(ball[0], ball[1], 0, ""));
+
+        while (!pq.isEmpty()) {
+            Node cur = pq.poll();
+            if (cur.distance > dist[cur.row][cur.col]) {
+                continue;
+            }
+            if (cur.row == hole[0] && cur.col == hole[1]) {
+                return cur.path;
+            }
+
+            for (int i = 0; i < 4; i++) {
+                int row = cur.row;
+                int col = cur.col;
+                int distance = cur.distance;
+                while (row + DIRS[i][0] >= 0 && row + DIRS[i][0] < m &&
+                        col + DIRS[i][1] >= 0 && col + DIRS[i][1] < n &&
+                        maze[row + DIRS[i][0]][col + DIRS[i][1]] == 0) {
+                    row += DIRS[i][0];
+                    col += DIRS[i][1];
+                    distance++;
+                    if (row == hole[0] && col == hole[1]) {
+                        break;
+                    }
+                }
+
+                String nextPath = cur.path + NAMES[i];
+                if (distance < dist[row][col] ||
+                        (distance == dist[row][col] &&
+                                (path[row][col] == null || nextPath.compareTo(path[row][col]) < 0))) {
+                    dist[row][col] = distance;
+                    path[row][col] = nextPath;
+                    pq.offer(new Node(row, col, distance, nextPath));
+                }
+            }
+        }
+
+        return "impossible";
+    }
+
+    private static class Node {
+        int row;
+        int col;
+        int distance;
+        String path;
+
+        Node(int row, int col, int distance, String path) {
+            this.row = row;
+            this.col = col;
+            this.distance = distance;
+            this.path = path;
+        }
+    }
+}
+```
+
+复杂度：时间 `O(mn log(mn) * max(m, n))`，空间 `O(mn)`。
+
+#### 基础语法与算法思想
+
+- 优先队列比较器可以同时按距离和字符串字典序排序。
+- 球遇到洞要立即停下，不能继续滚到墙。
+- 核心思想：本题是带字典序 tie-break 的最短路问题，用 Dijkstra 更稳。
 
 ---
 
@@ -580,6 +2237,95 @@ solution.pick(); // 返回 [0, 0]
  `1 <= words.length <= 20` 
  `1 <= words[i].length <= 100` 
  `words[i]`  由英文字母（小写和大写字母）组成
+
+### Java 解法补充
+
+#### 基础解法：逐行字符串检查
+
+算法思想：把三行键盘分别保存成字符串。对每个单词，转成小写后检查它是否能完全落在某一行中。
+
+```java
+import java.util.ArrayList;
+import java.util.List;
+
+class Solution {
+    public String[] findWords(String[] words) {
+        String[] rows = {"qwertyuiop", "asdfghjkl", "zxcvbnm"};
+        List<String> ans = new ArrayList<>();
+
+        for (String word : words) {
+            String lower = word.toLowerCase();
+            for (String row : rows) {
+                boolean ok = true;
+                for (int i = 0; i < lower.length(); i++) {
+                    if (row.indexOf(lower.charAt(i)) < 0) {
+                        ok = false;
+                        break;
+                    }
+                }
+                if (ok) {
+                    ans.add(word);
+                    break;
+                }
+            }
+        }
+
+        return ans.toArray(new String[0]);
+    }
+}
+```
+
+复杂度：时间 `O(totalChars)`，空间 `O(words.length)`。
+
+#### 资深解法：字符到行号映射
+
+算法思想：预处理每个字母所在的键盘行。检查单词时，只要所有字符映射到同一个行号，就加入答案。
+
+```java
+import java.util.ArrayList;
+import java.util.List;
+
+class Solution {
+    public String[] findWords(String[] words) {
+        int[] rowOf = new int[26];
+        fill(rowOf, "qwertyuiop", 1);
+        fill(rowOf, "asdfghjkl", 2);
+        fill(rowOf, "zxcvbnm", 3);
+
+        List<String> ans = new ArrayList<>();
+        for (String word : words) {
+            String lower = word.toLowerCase();
+            int row = rowOf[lower.charAt(0) - 'a'];
+            boolean ok = true;
+            for (int i = 1; i < lower.length(); i++) {
+                if (rowOf[lower.charAt(i) - 'a'] != row) {
+                    ok = false;
+                    break;
+                }
+            }
+            if (ok) {
+                ans.add(word);
+            }
+        }
+
+        return ans.toArray(new String[0]);
+    }
+
+    private void fill(int[] rowOf, String letters, int row) {
+        for (int i = 0; i < letters.length(); i++) {
+            rowOf[letters.charAt(i) - 'a'] = row;
+        }
+    }
+}
+```
+
+复杂度：时间 `O(totalChars)`，空间 `O(1)`，不计返回数组。
+
+#### 基础语法与算法思想
+
+- `toLowerCase()` 可以统一处理大小写。
+- `ans.toArray(new String[0])` 把列表转成字符串数组。
+- 核心思想：固定字符分类问题适合预处理映射表，查询时直接取下标。
 
 ---
 
