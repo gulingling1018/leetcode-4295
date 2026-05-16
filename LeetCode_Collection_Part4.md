@@ -347,3 +347,260 @@
 
 ---
 
+# Java 解法补充附录（91-100）
+
+### 91. 解码方法
+
+基础解法：递归尝试取 1 位或 2 位，遇到非法前导 0 返回 0。
+资深解法：动态规划，`dp[i]` 表示前 `i` 个字符的解码数。
+
+```java
+class Solution {
+    public int numDecodings(String s) {
+        int n = s.length();
+        int[] dp = new int[n + 1];
+        dp[0] = 1;
+        dp[1] = s.charAt(0) == '0' ? 0 : 1;
+        for (int i = 2; i <= n; i++) {
+            int one = s.charAt(i - 1) - '0';
+            int two = Integer.parseInt(s.substring(i - 2, i));
+            if (one >= 1) dp[i] += dp[i - 1];
+            if (two >= 10 && two <= 26) dp[i] += dp[i - 2];
+        }
+        return dp[n];
+    }
+}
+```
+
+基础语法与思想：`substring(l,r)` 左闭右开；解码题要特别处理 `'0'`。
+
+### 92. 反转链表 II
+
+基础解法：把链表值放入数组，反转 `[left,right]` 的值后写回。
+资深解法：虚拟头结点定位区间前驱，头插法原地反转区间。
+
+```java
+class Solution {
+    public ListNode reverseBetween(ListNode head, int left, int right) {
+        ListNode dummy = new ListNode(0, head);
+        ListNode prev = dummy;
+        for (int i = 1; i < left; i++) prev = prev.next;
+        ListNode cur = prev.next;
+        for (int i = 0; i < right - left; i++) {
+            ListNode next = cur.next;
+            cur.next = next.next;
+            next.next = prev.next;
+            prev.next = next;
+        }
+        return dummy.next;
+    }
+}
+```
+
+基础语法与思想：头插法每次把 `cur.next` 移到区间最前面；`dummy` 统一处理反转从头开始的情况。
+
+### 93. 复原 IP 地址
+
+基础解法：三重循环枚举三个切点，检查四段是否合法。
+资深解法：回溯选择 1 到 3 位作为下一段，剪枝非法前导 0 和大于 255。
+
+```java
+class Solution {
+    public java.util.List<String> restoreIpAddresses(String s) {
+        java.util.List<String> ans = new java.util.ArrayList<>();
+        dfs(s, 0, 0, new java.util.ArrayList<>(), ans);
+        return ans;
+    }
+    private void dfs(String s, int index, int part, java.util.List<String> path, java.util.List<String> ans) {
+        if (part == 4) {
+            if (index == s.length()) ans.add(String.join(".", path));
+            return;
+        }
+        for (int len = 1; len <= 3 && index + len <= s.length(); len++) {
+            String seg = s.substring(index, index + len);
+            if (seg.length() > 1 && seg.charAt(0) == '0') break;
+            if (Integer.parseInt(seg) > 255) break;
+            path.add(seg);
+            dfs(s, index + len, part + 1, path, ans);
+            path.remove(path.size() - 1);
+        }
+    }
+}
+```
+
+基础语法与思想：`String.join(".", list)` 拼接 IP 段；回溯适合切分字符串。
+
+### 94. 二叉树的中序遍历
+
+基础解法：递归左、根、右。
+资深解法：栈模拟递归，持续压入左链。
+
+```java
+class Solution {
+    public java.util.List<Integer> inorderTraversal(TreeNode root) {
+        java.util.List<Integer> ans = new java.util.ArrayList<>();
+        java.util.Deque<TreeNode> stack = new java.util.ArrayDeque<>();
+        TreeNode cur = root;
+        while (cur != null || !stack.isEmpty()) {
+            while (cur != null) {
+                stack.push(cur);
+                cur = cur.left;
+            }
+            cur = stack.pop();
+            ans.add(cur.val);
+            cur = cur.right;
+        }
+        return ans;
+    }
+}
+```
+
+基础语法与思想：树遍历递归本质就是系统栈；中序顺序是左子树、当前节点、右子树。
+
+### 95. 不同的二叉搜索树 II
+
+基础解法：枚举根节点，递归生成左右子树后两两组合。
+资深解法：用区间 `[lo, hi]` 表示可用值范围，空区间返回 `null` 作为可组合子树。
+
+```java
+class Solution {
+    public java.util.List<TreeNode> generateTrees(int n) {
+        return build(1, n);
+    }
+    private java.util.List<TreeNode> build(int lo, int hi) {
+        java.util.List<TreeNode> ans = new java.util.ArrayList<>();
+        if (lo > hi) {
+            ans.add(null);
+            return ans;
+        }
+        for (int root = lo; root <= hi; root++) {
+            for (TreeNode left : build(lo, root - 1)) {
+                for (TreeNode right : build(root + 1, hi)) {
+                    TreeNode node = new TreeNode(root);
+                    node.left = left;
+                    node.right = right;
+                    ans.add(node);
+                }
+            }
+        }
+        return ans;
+    }
+}
+```
+
+基础语法与思想：BST 左小右大，因此选定根后左右值域固定。
+
+### 96. 不同的二叉搜索树
+
+基础解法：递归枚举根并计算左右方案乘积。
+资深解法：Catalan DP，`dp[n] = sum(dp[left] * dp[right])`。
+
+```java
+class Solution {
+    public int numTrees(int n) {
+        int[] dp = new int[n + 1];
+        dp[0] = dp[1] = 1;
+        for (int nodes = 2; nodes <= n; nodes++) {
+            for (int left = 0; left < nodes; left++) {
+                dp[nodes] += dp[left] * dp[nodes - 1 - left];
+            }
+        }
+        return dp[n];
+    }
+}
+```
+
+基础语法与思想：左右子树方案独立，组合数相乘。
+
+### 97. 交错字符串
+
+基础解法：递归选择从 `s1` 或 `s2` 消耗一个字符，并记忆化。
+资深解法：二维 DP，`dp[i][j]` 表示 `s1` 前 `i` 个和 `s2` 前 `j` 个能否组成 `s3` 前 `i+j` 个。
+
+```java
+class Solution {
+    public boolean isInterleave(String s1, String s2, String s3) {
+        int m = s1.length(), n = s2.length();
+        if (m + n != s3.length()) return false;
+        boolean[][] dp = new boolean[m + 1][n + 1];
+        dp[0][0] = true;
+        for (int i = 0; i <= m; i++) {
+            for (int j = 0; j <= n; j++) {
+                int k = i + j - 1;
+                if (i > 0) dp[i][j] |= dp[i - 1][j] && s1.charAt(i - 1) == s3.charAt(k);
+                if (j > 0) dp[i][j] |= dp[i][j - 1] && s2.charAt(j - 1) == s3.charAt(k);
+            }
+        }
+        return dp[m][n];
+    }
+}
+```
+
+基础语法与思想：`|=` 可把新条件并入布尔状态；双字符串交错常用二维 DP。
+
+### 98. 验证二叉搜索树
+
+基础解法：中序遍历成数组后检查是否严格递增。
+资深解法：递归传上下界，节点值必须在 `(low, high)` 内。
+
+```java
+class Solution {
+    public boolean isValidBST(TreeNode root) {
+        return valid(root, null, null);
+    }
+    private boolean valid(TreeNode node, Long low, Long high) {
+        if (node == null) return true;
+        long v = node.val;
+        if (low != null && v <= low) return false;
+        if (high != null && v >= high) return false;
+        return valid(node.left, low, v) && valid(node.right, v, high);
+    }
+}
+```
+
+基础语法与思想：用 `Long` 上下界避免 `int` 边界溢出；BST 是全局约束，不只是父子关系。
+
+### 99. 恢复二叉搜索树
+
+基础解法：中序取出节点和值，排序值后写回。
+资深解法：中序遍历中找到两个逆序位置对应的错误节点并交换值。
+
+```java
+class Solution {
+    private TreeNode first, second, prev;
+    public void recoverTree(TreeNode root) {
+        inorder(root);
+        int temp = first.val;
+        first.val = second.val;
+        second.val = temp;
+    }
+    private void inorder(TreeNode node) {
+        if (node == null) return;
+        inorder(node.left);
+        if (prev != null && prev.val > node.val) {
+            if (first == null) first = prev;
+            second = node;
+        }
+        prev = node;
+        inorder(node.right);
+    }
+}
+```
+
+基础语法与思想：BST 中序应递增；两个节点交换会造成一次或两次逆序。
+
+### 100. 相同的树
+
+基础解法：层序遍历同时比较节点结构和值。
+资深解法：递归比较当前节点、左子树、右子树。
+
+```java
+class Solution {
+    public boolean isSameTree(TreeNode p, TreeNode q) {
+        if (p == null || q == null) return p == q;
+        return p.val == q.val && isSameTree(p.left, q.left) && isSameTree(p.right, q.right);
+    }
+}
+```
+
+基础语法与思想：`p == q` 在两者同为 `null` 时为 `true`；树结构题先处理空节点。

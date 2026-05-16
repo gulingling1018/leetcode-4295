@@ -686,3 +686,489 @@ struct Node {
 
 ---
 
+# Java 解法补充附录（101-120）
+
+### 101. 对称二叉树
+
+基础解法：层序遍历每层并比较镜像位置。
+资深解法：递归比较左右子树是否互为镜像。
+
+```java
+class Solution {
+    public boolean isSymmetric(TreeNode root) {
+        return root == null || mirror(root.left, root.right);
+    }
+    private boolean mirror(TreeNode a, TreeNode b) {
+        if (a == null || b == null) return a == b;
+        return a.val == b.val && mirror(a.left, b.right) && mirror(a.right, b.left);
+    }
+}
+```
+
+基础语法与思想：树镜像比较不是同向比较，而是左的左对右的右、左的右对右的左。
+
+### 102. 二叉树的层序遍历
+
+基础解法：递归 DFS 按深度放入列表。
+资深解法：队列 BFS，每次处理一整层。
+
+```java
+class Solution {
+    public java.util.List<java.util.List<Integer>> levelOrder(TreeNode root) {
+        java.util.List<java.util.List<Integer>> ans = new java.util.ArrayList<>();
+        if (root == null) return ans;
+        java.util.Queue<TreeNode> q = new java.util.ArrayDeque<>();
+        q.offer(root);
+        while (!q.isEmpty()) {
+            int size = q.size();
+            java.util.List<Integer> level = new java.util.ArrayList<>();
+            for (int i = 0; i < size; i++) {
+                TreeNode node = q.poll();
+                level.add(node.val);
+                if (node.left != null) q.offer(node.left);
+                if (node.right != null) q.offer(node.right);
+            }
+            ans.add(level);
+        }
+        return ans;
+    }
+}
+```
+
+基础语法与思想：`Queue.offer/poll` 实现 BFS；`size` 固定当前层节点数。
+
+### 103. 二叉树的锯齿形层序遍历
+
+基础解法：普通层序后，奇数层反转列表。
+资深解法：按层使用双端队列决定头插或尾插。
+
+```java
+class Solution {
+    public java.util.List<java.util.List<Integer>> zigzagLevelOrder(TreeNode root) {
+        java.util.List<java.util.List<Integer>> ans = new java.util.ArrayList<>();
+        if (root == null) return ans;
+        java.util.Queue<TreeNode> q = new java.util.ArrayDeque<>();
+        q.offer(root);
+        boolean leftToRight = true;
+        while (!q.isEmpty()) {
+            java.util.LinkedList<Integer> level = new java.util.LinkedList<>();
+            for (int i = q.size(); i > 0; i--) {
+                TreeNode node = q.poll();
+                if (leftToRight) level.addLast(node.val); else level.addFirst(node.val);
+                if (node.left != null) q.offer(node.left);
+                if (node.right != null) q.offer(node.right);
+            }
+            ans.add(level);
+            leftToRight = !leftToRight;
+        }
+        return ans;
+    }
+}
+```
+
+基础语法与思想：`LinkedList.addFirst` 可在层内反向收集。
+
+### 104. 二叉树的最大深度
+
+基础解法：层序遍历统计层数。
+资深解法：递归深度等于左右子树最大深度加一。
+
+```java
+class Solution {
+    public int maxDepth(TreeNode root) {
+        if (root == null) return 0;
+        return 1 + Math.max(maxDepth(root.left), maxDepth(root.right));
+    }
+}
+```
+
+基础语法与思想：树高度题天然适合后序递归。
+
+### 105. 从前序与中序遍历序列构造二叉树
+
+基础解法：每次在中序数组线性查找根节点位置。
+资深解法：用哈希表记录中序值到下标，递归切分左右子树。
+
+```java
+class Solution {
+    private int preIndex = 0;
+    private java.util.Map<Integer, Integer> inIndex = new java.util.HashMap<>();
+    public TreeNode buildTree(int[] preorder, int[] inorder) {
+        for (int i = 0; i < inorder.length; i++) inIndex.put(inorder[i], i);
+        return build(preorder, 0, inorder.length - 1);
+    }
+    private TreeNode build(int[] preorder, int left, int right) {
+        if (left > right) return null;
+        int val = preorder[preIndex++];
+        TreeNode root = new TreeNode(val);
+        int mid = inIndex.get(val);
+        root.left = build(preorder, left, mid - 1);
+        root.right = build(preorder, mid + 1, right);
+        return root;
+    }
+}
+```
+
+基础语法与思想：前序第一个是根；中序根左侧是左子树、右侧是右子树。
+
+### 106. 从中序与后序遍历序列构造二叉树
+
+基础解法：在中序中线性找根并递归。
+资深解法：后序从末尾取根，递归顺序先右后左。
+
+```java
+class Solution {
+    private int postIndex;
+    private java.util.Map<Integer, Integer> inIndex = new java.util.HashMap<>();
+    public TreeNode buildTree(int[] inorder, int[] postorder) {
+        postIndex = postorder.length - 1;
+        for (int i = 0; i < inorder.length; i++) inIndex.put(inorder[i], i);
+        return build(postorder, 0, inorder.length - 1);
+    }
+    private TreeNode build(int[] postorder, int left, int right) {
+        if (left > right) return null;
+        int val = postorder[postIndex--];
+        TreeNode root = new TreeNode(val);
+        int mid = inIndex.get(val);
+        root.right = build(postorder, mid + 1, right);
+        root.left = build(postorder, left, mid - 1);
+        return root;
+    }
+}
+```
+
+基础语法与思想：后序末尾是根；倒序消费后序时要先构造右子树。
+
+### 107. 二叉树的层序遍历 II
+
+基础解法：普通层序后 `Collections.reverse(ans)`。
+资深解法：每层结果头插到链表。
+
+```java
+class Solution {
+    public java.util.List<java.util.List<Integer>> levelOrderBottom(TreeNode root) {
+        java.util.LinkedList<java.util.List<Integer>> ans = new java.util.LinkedList<>();
+        if (root == null) return ans;
+        java.util.Queue<TreeNode> q = new java.util.ArrayDeque<>();
+        q.offer(root);
+        while (!q.isEmpty()) {
+            java.util.List<Integer> level = new java.util.ArrayList<>();
+            for (int i = q.size(); i > 0; i--) {
+                TreeNode node = q.poll();
+                level.add(node.val);
+                if (node.left != null) q.offer(node.left);
+                if (node.right != null) q.offer(node.right);
+            }
+            ans.addFirst(level);
+        }
+        return ans;
+    }
+}
+```
+
+基础语法与思想：链表头插适合倒序收集层。
+
+### 108. 将有序数组转换为二叉搜索树
+
+基础解法：每次取中点作为根。
+资深解法：递归区间 `[left,right]` 构造高度平衡 BST。
+
+```java
+class Solution {
+    public TreeNode sortedArrayToBST(int[] nums) {
+        return build(nums, 0, nums.length - 1);
+    }
+    private TreeNode build(int[] nums, int left, int right) {
+        if (left > right) return null;
+        int mid = left + (right - left) / 2;
+        TreeNode root = new TreeNode(nums[mid]);
+        root.left = build(nums, left, mid - 1);
+        root.right = build(nums, mid + 1, right);
+        return root;
+    }
+}
+```
+
+基础语法与思想：有序数组中点作为根可保证左右规模接近。
+
+### 109. 有序链表转换二叉搜索树
+
+基础解法：链表转数组后复用 108。
+资深解法：快慢指针找中点作为根，递归左右链表区间。
+
+```java
+class Solution {
+    public TreeNode sortedListToBST(ListNode head) {
+        java.util.List<Integer> list = new java.util.ArrayList<>();
+        while (head != null) { list.add(head.val); head = head.next; }
+        return build(list, 0, list.size() - 1);
+    }
+    private TreeNode build(java.util.List<Integer> a, int l, int r) {
+        if (l > r) return null;
+        int m = l + (r - l) / 2;
+        TreeNode root = new TreeNode(a.get(m));
+        root.left = build(a, l, m - 1);
+        root.right = build(a, m + 1, r);
+        return root;
+    }
+}
+```
+
+基础语法与思想：链表不支持随机访问，转数组可简化实现。
+
+### 110. 平衡二叉树
+
+基础解法：每个节点重复计算左右子树高度。
+资深解法：后序递归返回高度，发现不平衡返回 `-1` 作为哨兵。
+
+```java
+class Solution {
+    public boolean isBalanced(TreeNode root) {
+        return height(root) != -1;
+    }
+    private int height(TreeNode node) {
+        if (node == null) return 0;
+        int left = height(node.left), right = height(node.right);
+        if (left == -1 || right == -1 || Math.abs(left - right) > 1) return -1;
+        return 1 + Math.max(left, right);
+    }
+}
+```
+
+基础语法与思想：后序能同时获得子树信息并向上剪枝。
+
+### 111. 二叉树的最小深度
+
+基础解法：DFS 处理空子树边界。
+资深解法：BFS 第一次遇到叶子就是最小深度。
+
+```java
+class Solution {
+    public int minDepth(TreeNode root) {
+        if (root == null) return 0;
+        java.util.Queue<TreeNode> q = new java.util.ArrayDeque<>();
+        q.offer(root);
+        int depth = 1;
+        while (!q.isEmpty()) {
+            for (int i = q.size(); i > 0; i--) {
+                TreeNode node = q.poll();
+                if (node.left == null && node.right == null) return depth;
+                if (node.left != null) q.offer(node.left);
+                if (node.right != null) q.offer(node.right);
+            }
+            depth++;
+        }
+        return depth;
+    }
+}
+```
+
+基础语法与思想：最短层数用 BFS 更早停止。
+
+### 112. 路径总和
+
+基础解法：DFS 枚举所有根到叶路径和。
+资深解法：递归传递剩余目标值，到叶子时判断是否等于节点值。
+
+```java
+class Solution {
+    public boolean hasPathSum(TreeNode root, int targetSum) {
+        if (root == null) return false;
+        if (root.left == null && root.right == null) return targetSum == root.val;
+        return hasPathSum(root.left, targetSum - root.val) || hasPathSum(root.right, targetSum - root.val);
+    }
+}
+```
+
+基础语法与思想：根到叶路径必须在叶子节点结束。
+
+### 113. 路径总和 II
+
+基础解法：DFS 路径列表，命中后复制路径。
+资深解法：回溯维护路径和剩余目标，返回时移除当前节点。
+
+```java
+class Solution {
+    public java.util.List<java.util.List<Integer>> pathSum(TreeNode root, int targetSum) {
+        java.util.List<java.util.List<Integer>> ans = new java.util.ArrayList<>();
+        dfs(root, targetSum, new java.util.ArrayList<>(), ans);
+        return ans;
+    }
+    private void dfs(TreeNode node, int remain, java.util.List<Integer> path, java.util.List<java.util.List<Integer>> ans) {
+        if (node == null) return;
+        path.add(node.val);
+        if (node.left == null && node.right == null && remain == node.val) ans.add(new java.util.ArrayList<>(path));
+        dfs(node.left, remain - node.val, path, ans);
+        dfs(node.right, remain - node.val, path, ans);
+        path.remove(path.size() - 1);
+    }
+}
+```
+
+基础语法与思想：收集路径时必须复制 `path`，否则会被后续回溯修改。
+
+### 114. 二叉树展开为链表
+
+基础解法：前序遍历保存节点列表，再重连成右链。
+资深解法：后序递归原地展开，或用 Morris 风格把左子树插到右侧。
+
+```java
+class Solution {
+    public void flatten(TreeNode root) {
+        TreeNode cur = root;
+        while (cur != null) {
+            if (cur.left != null) {
+                TreeNode pre = cur.left;
+                while (pre.right != null) pre = pre.right;
+                pre.right = cur.right;
+                cur.right = cur.left;
+                cur.left = null;
+            }
+            cur = cur.right;
+        }
+    }
+}
+```
+
+基础语法与思想：展开顺序是前序；左子树最右节点接原右子树。
+
+### 115. 不同的子序列
+
+基础解法：递归比较选或不选当前字符。
+资深解法：`dp[i][j]` 表示 `s` 前 `i` 个中形成 `t` 前 `j` 个的方案数。
+
+```java
+class Solution {
+    public int numDistinct(String s, String t) {
+        int m = s.length(), n = t.length();
+        long[][] dp = new long[m + 1][n + 1];
+        for (int i = 0; i <= m; i++) dp[i][0] = 1;
+        for (int i = 1; i <= m; i++) {
+            for (int j = 1; j <= n; j++) {
+                dp[i][j] = dp[i - 1][j];
+                if (s.charAt(i - 1) == t.charAt(j - 1)) dp[i][j] += dp[i - 1][j - 1];
+            }
+        }
+        return (int) dp[m][n];
+    }
+}
+```
+
+基础语法与思想：子序列可以跳过字符；空 `t` 有 1 种形成方式。
+
+### 116. 填充每个节点的下一个右侧节点指针
+
+基础解法：层序遍历逐层连接 `next`。
+资深解法：完美二叉树可用已有 `next` 串联下一层。
+
+```java
+class Solution {
+    public Node connect(Node root) {
+        if (root == null) return null;
+        Node leftmost = root;
+        while (leftmost.left != null) {
+            Node cur = leftmost;
+            while (cur != null) {
+                cur.left.next = cur.right;
+                if (cur.next != null) cur.right.next = cur.next.left;
+                cur = cur.next;
+            }
+            leftmost = leftmost.left;
+        }
+        return root;
+    }
+}
+```
+
+基础语法与思想：完美二叉树每个非叶节点都有左右孩子，可以常数空间连接。
+
+### 117. 填充每个节点的下一个右侧节点指针 II
+
+基础解法：BFS 层序连接。
+资深解法：用虚拟头结点收集下一层链表，适用于非完美二叉树。
+
+```java
+class Solution {
+    public Node connect(Node root) {
+        Node cur = root;
+        while (cur != null) {
+            Node dummy = new Node(0), tail = dummy;
+            while (cur != null) {
+                if (cur.left != null) { tail.next = cur.left; tail = tail.next; }
+                if (cur.right != null) { tail.next = cur.right; tail = tail.next; }
+                cur = cur.next;
+            }
+            cur = dummy.next;
+        }
+        return root;
+    }
+}
+```
+
+基础语法与思想：`next` 链让我们能横向扫描当前层，同时构造下一层。
+
+### 118. 杨辉三角
+
+基础解法：按行生成，每个中间值等于上一行相邻两数之和。
+资深解法：滚动构造当前行后加入答案。
+
+```java
+class Solution {
+    public java.util.List<java.util.List<Integer>> generate(int numRows) {
+        java.util.List<java.util.List<Integer>> ans = new java.util.ArrayList<>();
+        for (int r = 0; r < numRows; r++) {
+            java.util.List<Integer> row = new java.util.ArrayList<>();
+            for (int c = 0; c <= r; c++) {
+                if (c == 0 || c == r) row.add(1);
+                else row.add(ans.get(r - 1).get(c - 1) + ans.get(r - 1).get(c));
+            }
+            ans.add(row);
+        }
+        return ans;
+    }
+}
+```
+
+基础语法与思想：二维列表用 `get(row).get(col)` 访问。
+
+### 119. 杨辉三角 II
+
+基础解法：生成前 `rowIndex + 1` 行后取最后一行。
+资深解法：一维数组从右向左更新，避免覆盖左上角旧值。
+
+```java
+class Solution {
+    public java.util.List<Integer> getRow(int rowIndex) {
+        java.util.List<Integer> row = new java.util.ArrayList<>();
+        for (int i = 0; i <= rowIndex; i++) {
+            row.add(1);
+            for (int j = i - 1; j > 0; j--) row.set(j, row.get(j) + row.get(j - 1));
+        }
+        return row;
+    }
+}
+```
+
+基础语法与思想：`List.set(index,value)` 修改已有元素；从右往左防止状态污染。
+
+### 120. 三角形最小路径和
+
+基础解法：二维 DP 自顶向下。
+资深解法：自底向上一维 DP，`dp[j] = min(dp[j], dp[j+1]) + value`。
+
+```java
+class Solution {
+    public int minimumTotal(java.util.List<java.util.List<Integer>> triangle) {
+        int n = triangle.size();
+        int[] dp = new int[n + 1];
+        for (int i = n - 1; i >= 0; i--) {
+            for (int j = 0; j <= i; j++) {
+                dp[j] = Math.min(dp[j], dp[j + 1]) + triangle.get(i).get(j);
+            }
+        }
+        return dp[0];
+    }
+}
+```
+
+基础语法与思想：自底向上可天然处理底边界；三角形每步只能走下一行相邻位置。

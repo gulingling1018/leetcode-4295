@@ -1133,3 +1133,760 @@ n 位格雷码序列 是一个由  `2n`  个整数组成的序列，其中：
 
 ---
 
+# Java 解法补充附录（61-90）
+
+### 61. 旋转链表
+
+基础解法：把链表节点放进数组，按 `(i + k) % n` 重连；时间 `O(n)`，空间 `O(n)`。
+资深解法：先求长度，把链表连成环，再在 `n - k % n` 处断开。
+
+```java
+class Solution {
+    public ListNode rotateRight(ListNode head, int k) {
+        if (head == null || head.next == null || k == 0) return head;
+        int n = 1;
+        ListNode tail = head;
+        while (tail.next != null) {
+            tail = tail.next;
+            n++;
+        }
+        tail.next = head;
+        int steps = n - k % n;
+        while (steps-- > 0) tail = tail.next;
+        ListNode ans = tail.next;
+        tail.next = null;
+        return ans;
+    }
+}
+```
+
+基础语法与思想：链表成环要记得断开；`k % n` 消除无效旋转。
+
+### 62. 不同路径
+
+基础解法：二维 DP，`dp[r][c] = dp[r-1][c] + dp[r][c-1]`。
+资深解法：一维滚动数组，当前格只依赖左侧和上方。
+
+```java
+class Solution {
+    public int uniquePaths(int m, int n) {
+        int[] dp = new int[n];
+        java.util.Arrays.fill(dp, 1);
+        for (int r = 1; r < m; r++) {
+            for (int c = 1; c < n; c++) dp[c] += dp[c - 1];
+        }
+        return dp[n - 1];
+    }
+}
+```
+
+基础语法与思想：`Arrays.fill` 初始化数组；路径计数常用“到达当前格的方法数”。
+
+### 63. 不同路径 II
+
+基础解法：二维 DP，遇到障碍格置 0。
+资深解法：一维 DP，障碍清零，否则累加左侧。
+
+```java
+class Solution {
+    public int uniquePathsWithObstacles(int[][] grid) {
+        int m = grid.length, n = grid[0].length;
+        int[] dp = new int[n];
+        dp[0] = grid[0][0] == 1 ? 0 : 1;
+        for (int r = 0; r < m; r++) {
+            for (int c = 0; c < n; c++) {
+                if (grid[r][c] == 1) dp[c] = 0;
+                else if (c > 0) dp[c] += dp[c - 1];
+            }
+        }
+        return dp[n - 1];
+    }
+}
+```
+
+基础语法与思想：障碍格不能穿过，DP 状态直接归零。
+
+### 64. 最小路径和
+
+基础解法：二维 DP 保存到每个格子的最小路径和。
+资深解法：直接在原矩阵上滚动更新，省空间。
+
+```java
+class Solution {
+    public int minPathSum(int[][] grid) {
+        int m = grid.length, n = grid[0].length;
+        for (int r = 0; r < m; r++) {
+            for (int c = 0; c < n; c++) {
+                if (r == 0 && c == 0) continue;
+                int up = r == 0 ? Integer.MAX_VALUE : grid[r - 1][c];
+                int left = c == 0 ? Integer.MAX_VALUE : grid[r][c - 1];
+                grid[r][c] += Math.min(up, left);
+            }
+        }
+        return grid[m - 1][n - 1];
+    }
+}
+```
+
+基础语法与思想：用哨兵值处理边界；最短路径 DP 取前驱最小值。
+
+### 65. 有效数字
+
+基础解法：用 `Double.parseDouble` 尝试解析，但要注意它接受部分 LeetCode 不允许的格式，面试中只作辅助理解。
+资深解法：按字符扫描，分别记录数字、小数点、指数、符号是否合法。
+
+```java
+class Solution {
+    public boolean isNumber(String s) {
+        boolean seenDigit = false, seenDot = false, seenExp = false;
+        boolean digitAfterExp = true;
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (Character.isDigit(c)) {
+                seenDigit = true;
+                if (seenExp) digitAfterExp = true;
+            } else if (c == '+' || c == '-') {
+                if (i > 0 && s.charAt(i - 1) != 'e' && s.charAt(i - 1) != 'E') return false;
+            } else if (c == '.') {
+                if (seenDot || seenExp) return false;
+                seenDot = true;
+            } else if (c == 'e' || c == 'E') {
+                if (seenExp || !seenDigit) return false;
+                seenExp = true;
+                digitAfterExp = false;
+            } else {
+                return false;
+            }
+        }
+        return seenDigit && digitAfterExp;
+    }
+}
+```
+
+基础语法与思想：`Character.isDigit` 判断数字；解析题适合维护状态标记。
+
+### 66. 加一
+
+基础解法：转成数字再加一会溢出，不推荐。
+资深解法：从末位处理进位，遇到非 9 直接加一返回。
+
+```java
+class Solution {
+    public int[] plusOne(int[] digits) {
+        for (int i = digits.length - 1; i >= 0; i--) {
+            if (digits[i] != 9) {
+                digits[i]++;
+                return digits;
+            }
+            digits[i] = 0;
+        }
+        int[] ans = new int[digits.length + 1];
+        ans[0] = 1;
+        return ans;
+    }
+}
+```
+
+基础语法与思想：数组长度固定，需要扩容时创建新数组。
+
+### 67. 二进制求和
+
+基础解法：从右向左模拟加法。
+资深解法：统一用 `carry` 同时处理两个字符串和进位。
+
+```java
+class Solution {
+    public String addBinary(String a, String b) {
+        StringBuilder sb = new StringBuilder();
+        int i = a.length() - 1, j = b.length() - 1, carry = 0;
+        while (i >= 0 || j >= 0 || carry != 0) {
+            int sum = carry;
+            if (i >= 0) sum += a.charAt(i--) - '0';
+            if (j >= 0) sum += b.charAt(j--) - '0';
+            sb.append(sum % 2);
+            carry = sum / 2;
+        }
+        return sb.reverse().toString();
+    }
+}
+```
+
+基础语法与思想：字符转数字用 `c - '0'`；低位到高位构造后反转。
+
+### 68. 文本左右对齐
+
+基础解法：逐行贪心装入尽可能多单词，再补空格。
+资深解法：普通行平均分配空格，最后一行左对齐。
+
+```java
+class Solution {
+    public java.util.List<String> fullJustify(String[] words, int maxWidth) {
+        java.util.List<String> ans = new java.util.ArrayList<>();
+        for (int i = 0; i < words.length;) {
+            int j = i, len = 0;
+            while (j < words.length && len + words[j].length() + (j - i) <= maxWidth) len += words[j++].length();
+            int gaps = j - i - 1;
+            StringBuilder line = new StringBuilder();
+            if (j == words.length || gaps == 0) {
+                for (int k = i; k < j; k++) {
+                    if (k > i) line.append(' ');
+                    line.append(words[k]);
+                }
+                while (line.length() < maxWidth) line.append(' ');
+            } else {
+                int spaces = maxWidth - len;
+                int each = spaces / gaps, extra = spaces % gaps;
+                for (int k = i; k < j; k++) {
+                    line.append(words[k]);
+                    if (k < j - 1) {
+                        for (int s = 0; s < each + (k - i < extra ? 1 : 0); s++) line.append(' ');
+                    }
+                }
+            }
+            ans.add(line.toString());
+            i = j;
+        }
+        return ans;
+    }
+}
+```
+
+基础语法与思想：`StringBuilder` 补空格；贪心按行分组。
+
+### 69. x 的平方根
+
+基础解法：从 1 开始线性试探。
+资深解法：二分答案，用 `long` 防止平方溢出。
+
+```java
+class Solution {
+    public int mySqrt(int x) {
+        int left = 0, right = x, ans = 0;
+        while (left <= right) {
+            int mid = left + (right - left) / 2;
+            if ((long) mid * mid <= x) {
+                ans = mid;
+                left = mid + 1;
+            } else right = mid - 1;
+        }
+        return ans;
+    }
+}
+```
+
+基础语法与思想：二分寻找“最后一个平方不超过 x 的数”。
+
+### 70. 爬楼梯
+
+基础解法：递归 `f(n)=f(n-1)+f(n-2)`。
+资深解法：滚动变量迭代 Fibonacci。
+
+```java
+class Solution {
+    public int climbStairs(int n) {
+        int a = 1, b = 1;
+        for (int i = 2; i <= n; i++) {
+            int c = a + b;
+            a = b;
+            b = c;
+        }
+        return b;
+    }
+}
+```
+
+基础语法与思想：只依赖前两项时可用滚动变量压缩空间。
+
+### 71. 简化路径
+
+基础解法：按 `/` 分割后用列表模拟进入目录和返回上级。
+资深解法：用栈处理目录名，跳过空串和 `.`。
+
+```java
+class Solution {
+    public String simplifyPath(String path) {
+        java.util.Deque<String> stack = new java.util.ArrayDeque<>();
+        for (String part : path.split("/")) {
+            if (part.equals("") || part.equals(".")) continue;
+            if (part.equals("..")) {
+                if (!stack.isEmpty()) stack.pollLast();
+            } else stack.offerLast(part);
+        }
+        StringBuilder ans = new StringBuilder();
+        for (String dir : stack) ans.append('/').append(dir);
+        return ans.length() == 0 ? "/" : ans.toString();
+    }
+}
+```
+
+基础语法与思想：`split("/")` 分割路径；栈适合处理返回上级目录。
+
+### 72. 编辑距离
+
+基础解法：递归尝试插入、删除、替换并加记忆化。
+资深解法：二维 DP，`dp[i][j]` 表示前 `i` 个字符变成前 `j` 个字符的最小操作数。
+
+```java
+class Solution {
+    public int minDistance(String word1, String word2) {
+        int m = word1.length(), n = word2.length();
+        int[][] dp = new int[m + 1][n + 1];
+        for (int i = 0; i <= m; i++) dp[i][0] = i;
+        for (int j = 0; j <= n; j++) dp[0][j] = j;
+        for (int i = 1; i <= m; i++) {
+            for (int j = 1; j <= n; j++) {
+                if (word1.charAt(i - 1) == word2.charAt(j - 1)) dp[i][j] = dp[i - 1][j - 1];
+                else dp[i][j] = 1 + Math.min(dp[i - 1][j - 1], Math.min(dp[i - 1][j], dp[i][j - 1]));
+            }
+        }
+        return dp[m][n];
+    }
+}
+```
+
+基础语法与思想：二维 DP 初始化空串边界；三种操作对应三个前驱状态。
+
+### 73. 矩阵置零
+
+基础解法：用两个集合记录需要清零的行和列。
+资深解法：用第一行和第一列作为标记数组，额外记录首列是否清零。
+
+```java
+class Solution {
+    public void setZeroes(int[][] matrix) {
+        int m = matrix.length, n = matrix[0].length;
+        boolean firstColZero = false;
+        for (int r = 0; r < m; r++) {
+            if (matrix[r][0] == 0) firstColZero = true;
+            for (int c = 1; c < n; c++) {
+                if (matrix[r][c] == 0) matrix[r][0] = matrix[0][c] = 0;
+            }
+        }
+        for (int r = m - 1; r >= 0; r--) {
+            for (int c = n - 1; c >= 1; c--) if (matrix[r][0] == 0 || matrix[0][c] == 0) matrix[r][c] = 0;
+            if (firstColZero) matrix[r][0] = 0;
+        }
+    }
+}
+```
+
+基础语法与思想：原地标记要注意第一行/列会被复用。
+
+### 74. 搜索二维矩阵
+
+基础解法：逐行二分或直接遍历。
+资深解法：把矩阵看作长度 `m*n` 的有序数组二分。
+
+```java
+class Solution {
+    public boolean searchMatrix(int[][] matrix, int target) {
+        int m = matrix.length, n = matrix[0].length;
+        int left = 0, right = m * n - 1;
+        while (left <= right) {
+            int mid = left + (right - left) / 2;
+            int value = matrix[mid / n][mid % n];
+            if (value == target) return true;
+            if (value < target) left = mid + 1;
+            else right = mid - 1;
+        }
+        return false;
+    }
+}
+```
+
+基础语法与思想：一维下标映射二维坐标：`row = idx / n`，`col = idx % n`。
+
+### 75. 颜色分类
+
+基础解法：计数 0、1、2 后重写数组。
+资深解法：荷兰国旗三指针，`zero` 左侧全 0，`two` 右侧全 2。
+
+```java
+class Solution {
+    public void sortColors(int[] nums) {
+        int zero = 0, i = 0, two = nums.length - 1;
+        while (i <= two) {
+            if (nums[i] == 0) swap(nums, zero++, i++);
+            else if (nums[i] == 2) swap(nums, i, two--);
+            else i++;
+        }
+    }
+    private void swap(int[] a, int i, int j) {
+        int t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+}
+```
+
+基础语法与思想：交换 2 后 `i` 不前进，因为换来的元素还未检查。
+
+### 76. 最小覆盖子串
+
+基础解法：枚举所有子串并统计是否覆盖。
+资深解法：滑动窗口维护所需字符计数，满足覆盖后尽量收缩左边界。
+
+```java
+class Solution {
+    public String minWindow(String s, String t) {
+        int[] need = new int[128];
+        for (int i = 0; i < t.length(); i++) need[t.charAt(i)]++;
+        int missing = t.length(), left = 0, bestLen = Integer.MAX_VALUE, bestStart = 0;
+        for (int right = 0; right < s.length(); right++) {
+            if (need[s.charAt(right)]-- > 0) missing--;
+            while (missing == 0) {
+                if (right - left + 1 < bestLen) {
+                    bestLen = right - left + 1;
+                    bestStart = left;
+                }
+                if (++need[s.charAt(left++)] > 0) missing++;
+            }
+        }
+        return bestLen == Integer.MAX_VALUE ? "" : s.substring(bestStart, bestStart + bestLen);
+    }
+}
+```
+
+基础语法与思想：数组可当字符频次表；窗口题常用“扩右、缩左”。
+
+### 77. 组合
+
+基础解法：枚举所有子集并筛选大小为 `k`。
+资深解法：回溯从 `start` 起选择下一个数，并用剩余数量剪枝。
+
+```java
+class Solution {
+    public java.util.List<java.util.List<Integer>> combine(int n, int k) {
+        java.util.List<java.util.List<Integer>> ans = new java.util.ArrayList<>();
+        dfs(1, n, k, new java.util.ArrayList<>(), ans);
+        return ans;
+    }
+    private void dfs(int start, int n, int k, java.util.List<Integer> path, java.util.List<java.util.List<Integer>> ans) {
+        if (path.size() == k) { ans.add(new java.util.ArrayList<>(path)); return; }
+        for (int x = start; x <= n - (k - path.size()) + 1; x++) {
+            path.add(x); dfs(x + 1, n, k, path, ans); path.remove(path.size() - 1);
+        }
+    }
+}
+```
+
+基础语法与思想：`start` 防止组合重复；剪枝减少无效分支。
+
+### 78. 子集
+
+基础解法：每个元素选或不选。
+资深解法：迭代扩展已有子集。
+
+```java
+class Solution {
+    public java.util.List<java.util.List<Integer>> subsets(int[] nums) {
+        java.util.List<java.util.List<Integer>> ans = new java.util.ArrayList<>();
+        ans.add(new java.util.ArrayList<>());
+        for (int num : nums) {
+            int size = ans.size();
+            for (int i = 0; i < size; i++) {
+                java.util.List<Integer> next = new java.util.ArrayList<>(ans.get(i));
+                next.add(num);
+                ans.add(next);
+            }
+        }
+        return ans;
+    }
+}
+```
+
+基础语法与思想：复制列表再追加，避免修改原子集。
+
+### 79. 单词搜索
+
+基础解法：从每个格子开始 DFS 搜索单词。
+资深解法：原地标记访问过的格子，回溯时恢复。
+
+```java
+class Solution {
+    public boolean exist(char[][] board, String word) {
+        for (int r = 0; r < board.length; r++)
+            for (int c = 0; c < board[0].length; c++)
+                if (dfs(board, word, r, c, 0)) return true;
+        return false;
+    }
+    private boolean dfs(char[][] b, String w, int r, int c, int i) {
+        if (i == w.length()) return true;
+        if (r < 0 || r == b.length || c < 0 || c == b[0].length || b[r][c] != w.charAt(i)) return false;
+        char old = b[r][c];
+        b[r][c] = '#';
+        boolean ok = dfs(b, w, r + 1, c, i + 1) || dfs(b, w, r - 1, c, i + 1) ||
+                dfs(b, w, r, c + 1, i + 1) || dfs(b, w, r, c - 1, i + 1);
+        b[r][c] = old;
+        return ok;
+    }
+}
+```
+
+基础语法与思想：DFS 越界判断要放在访问数组前；回溯恢复现场。
+
+### 80. 删除有序数组中的重复项 II
+
+基础解法：计数每个值出现次数，最多写两次。
+资深解法：慢指针，若 `nums[fast] != nums[slow - 2]` 才写入。
+
+```java
+class Solution {
+    public int removeDuplicates(int[] nums) {
+        int slow = 0;
+        for (int num : nums) {
+            if (slow < 2 || num != nums[slow - 2]) nums[slow++] = num;
+        }
+        return slow;
+    }
+}
+```
+
+基础语法与思想：允许最多两次时，只需比较新元素和有效区倒数第二个元素。
+
+### 81. 搜索旋转排序数组 II
+
+基础解法：线性扫描。
+资深解法：带重复值的二分；当 `left/mid/right` 无法判断有序边时收缩边界。
+
+```java
+class Solution {
+    public boolean search(int[] nums, int target) {
+        int left = 0, right = nums.length - 1;
+        while (left <= right) {
+            int mid = left + (right - left) / 2;
+            if (nums[mid] == target) return true;
+            if (nums[left] == nums[mid] && nums[mid] == nums[right]) { left++; right--; }
+            else if (nums[left] <= nums[mid]) {
+                if (nums[left] <= target && target < nums[mid]) right = mid - 1; else left = mid + 1;
+            } else {
+                if (nums[mid] < target && target <= nums[right]) left = mid + 1; else right = mid - 1;
+            }
+        }
+        return false;
+    }
+}
+```
+
+基础语法与思想：重复值会破坏“哪边有序”的明确判断，需要退化收缩。
+
+### 82. 删除排序链表中的重复元素 II
+
+基础解法：用哈希表统计值出现次数，再重建只出现一次的节点。
+资深解法：虚拟头结点，遇到重复段就整段跳过。
+
+```java
+class Solution {
+    public ListNode deleteDuplicates(ListNode head) {
+        ListNode dummy = new ListNode(0, head);
+        ListNode prev = dummy;
+        while (head != null) {
+            if (head.next != null && head.val == head.next.val) {
+                int val = head.val;
+                while (head != null && head.val == val) head = head.next;
+                prev.next = head;
+            } else {
+                prev = head;
+                head = head.next;
+            }
+        }
+        return dummy.next;
+    }
+}
+```
+
+基础语法与思想：删除头节点可能变化时使用 `dummy`。
+
+### 83. 删除排序链表中的重复元素
+
+基础解法：用集合记录已出现值并删除重复节点。
+资深解法：排序链表重复值相邻，直接跳过相同的 `next`。
+
+```java
+class Solution {
+    public ListNode deleteDuplicates(ListNode head) {
+        ListNode cur = head;
+        while (cur != null && cur.next != null) {
+            if (cur.val == cur.next.val) cur.next = cur.next.next;
+            else cur = cur.next;
+        }
+        return head;
+    }
+}
+```
+
+基础语法与思想：排序条件让重复检测只需比较相邻节点。
+
+### 84. 柱状图中最大的矩形
+
+基础解法：枚举每个柱子向左右扩展，找不低于它的最大宽度。
+资深解法：单调递增栈，遇到更矮柱子时结算栈顶柱子的最大矩形。
+
+```java
+class Solution {
+    public int largestRectangleArea(int[] heights) {
+        int n = heights.length, ans = 0;
+        java.util.Deque<Integer> stack = new java.util.ArrayDeque<>();
+        for (int i = 0; i <= n; i++) {
+            int h = i == n ? 0 : heights[i];
+            while (!stack.isEmpty() && heights[stack.peek()] > h) {
+                int height = heights[stack.pop()];
+                int left = stack.isEmpty() ? -1 : stack.peek();
+                ans = Math.max(ans, height * (i - left - 1));
+            }
+            stack.push(i);
+        }
+        return ans;
+    }
+}
+```
+
+基础语法与思想：栈里存下标；哨兵高度 0 触发最后结算。
+
+### 85. 最大矩形
+
+基础解法：枚举上下边界后按列判断连续 1。
+资深解法：把每一行作为柱状图底部，累积高度后复用第 84 题单调栈。
+
+```java
+class Solution {
+    public int maximalRectangle(char[][] matrix) {
+        int n = matrix[0].length, ans = 0;
+        int[] heights = new int[n];
+        for (char[] row : matrix) {
+            for (int c = 0; c < n; c++) heights[c] = row[c] == '1' ? heights[c] + 1 : 0;
+            ans = Math.max(ans, largest(heights));
+        }
+        return ans;
+    }
+    private int largest(int[] h) {
+        java.util.Deque<Integer> st = new java.util.ArrayDeque<>();
+        int ans = 0;
+        for (int i = 0; i <= h.length; i++) {
+            int cur = i == h.length ? 0 : h[i];
+            while (!st.isEmpty() && h[st.peek()] > cur) {
+                int height = h[st.pop()];
+                int left = st.isEmpty() ? -1 : st.peek();
+                ans = Math.max(ans, height * (i - left - 1));
+            }
+            st.push(i);
+        }
+        return ans;
+    }
+}
+```
+
+基础语法与思想：二维矩阵可逐行转化为一维柱状图问题。
+
+### 86. 分隔链表
+
+基础解法：把小于 `x` 和大于等于 `x` 的值分别收集后重建链表。
+资深解法：两个虚拟头链表分别接小节点和大节点，最后拼接。
+
+```java
+class Solution {
+    public ListNode partition(ListNode head, int x) {
+        ListNode smallDummy = new ListNode(0), bigDummy = new ListNode(0);
+        ListNode small = smallDummy, big = bigDummy;
+        while (head != null) {
+            if (head.val < x) { small.next = head; small = small.next; }
+            else { big.next = head; big = big.next; }
+            head = head.next;
+        }
+        big.next = null;
+        small.next = bigDummy.next;
+        return smallDummy.next;
+    }
+}
+```
+
+基础语法与思想：拆分链表后要把尾节点 `next` 置空，避免形成旧链。
+
+### 87. 扰乱字符串
+
+基础解法：递归枚举切分点和交换/不交换两种情况。
+资深解法：记忆化递归，并先用字符频次剪枝。
+
+```java
+class Solution {
+    private final java.util.Map<String, Boolean> memo = new java.util.HashMap<>();
+    public boolean isScramble(String s1, String s2) {
+        String key = s1 + "#" + s2;
+        if (memo.containsKey(key)) return memo.get(key);
+        if (s1.equals(s2)) return true;
+        int[] cnt = new int[26];
+        for (int i = 0; i < s1.length(); i++) { cnt[s1.charAt(i)-'a']++; cnt[s2.charAt(i)-'a']--; }
+        for (int x : cnt) if (x != 0) { memo.put(key, false); return false; }
+        int n = s1.length();
+        for (int i = 1; i < n; i++) {
+            if (isScramble(s1.substring(0,i), s2.substring(0,i)) && isScramble(s1.substring(i), s2.substring(i)) ||
+                isScramble(s1.substring(0,i), s2.substring(n-i)) && isScramble(s1.substring(i), s2.substring(0,n-i))) {
+                memo.put(key, true); return true;
+            }
+        }
+        memo.put(key, false);
+        return false;
+    }
+}
+```
+
+基础语法与思想：`Map<String, Boolean>` 缓存递归状态；递归题先找状态键。
+
+### 88. 合并两个有序数组
+
+基础解法：拷贝后从头归并。
+资深解法：从后往前填充，避免覆盖 `nums1` 未处理元素。
+
+```java
+class Solution {
+    public void merge(int[] nums1, int m, int[] nums2, int n) {
+        int i = m - 1, j = n - 1, k = m + n - 1;
+        while (j >= 0) {
+            if (i >= 0 && nums1[i] > nums2[j]) nums1[k--] = nums1[i--];
+            else nums1[k--] = nums2[j--];
+        }
+    }
+}
+```
+
+基础语法与思想：从后写入是原地归并的关键。
+
+### 89. 格雷编码
+
+基础解法：回溯找相邻只差一位的序列。
+资深解法：公式 `i ^ (i >> 1)` 直接生成第 `i` 个格雷码。
+
+```java
+class Solution {
+    public java.util.List<Integer> grayCode(int n) {
+        java.util.List<Integer> ans = new java.util.ArrayList<>();
+        for (int i = 0; i < (1 << n); i++) ans.add(i ^ (i >> 1));
+        return ans;
+    }
+}
+```
+
+基础语法与思想：`^` 是异或；右移一位后异或能构造相邻一位差。
+
+### 90. 子集 II
+
+基础解法：生成全部子集后用集合去重。
+资深解法：排序后回溯，同一层跳过重复元素。
+
+```java
+class Solution {
+    public java.util.List<java.util.List<Integer>> subsetsWithDup(int[] nums) {
+        java.util.Arrays.sort(nums);
+        java.util.List<java.util.List<Integer>> ans = new java.util.ArrayList<>();
+        dfs(nums, 0, new java.util.ArrayList<>(), ans);
+        return ans;
+    }
+    private void dfs(int[] nums, int start, java.util.List<Integer> path, java.util.List<java.util.List<Integer>> ans) {
+        ans.add(new java.util.ArrayList<>(path));
+        for (int i = start; i < nums.length; i++) {
+            if (i > start && nums[i] == nums[i - 1]) continue;
+            path.add(nums[i]); dfs(nums, i + 1, path, ans); path.remove(path.size() - 1);
+        }
+    }
+}
+```
+
+基础语法与思想：子集题每个递归节点都是一个答案；排序后同层去重。

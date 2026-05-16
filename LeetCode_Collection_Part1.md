@@ -37,6 +37,61 @@
  
 进阶：你可以想出一个时间复杂度小于  `O(n2)`  的算法吗？
 
+### Java 解法补充
+
+#### 基础解法：双重循环
+
+算法思想：枚举第一个数 `i`，再枚举它后面的数 `j`，只要 `nums[i] + nums[j] == target` 就返回两个下标。这个写法最直观，适合理解题意和数组下标。
+
+```java
+class Solution {
+    public int[] twoSum(int[] nums, int target) {
+        for (int i = 0; i < nums.length; i++) {
+            for (int j = i + 1; j < nums.length; j++) {
+                if (nums[i] + nums[j] == target) {
+                    return new int[]{i, j};
+                }
+            }
+        }
+        return new int[]{-1, -1};
+    }
+}
+```
+
+复杂度：时间 `O(n^2)`，空间 `O(1)`。
+
+#### 资深解法：哈希表一次扫描
+
+算法思想：扫描到 `nums[i]` 时，目标是找到之前是否出现过 `target - nums[i]`。用哈希表保存“值 -> 下标”，把查找补数降到均摊 `O(1)`。
+
+```java
+import java.util.HashMap;
+import java.util.Map;
+
+class Solution {
+    public int[] twoSum(int[] nums, int target) {
+        Map<Integer, Integer> index = new HashMap<>();
+        for (int i = 0; i < nums.length; i++) {
+            int need = target - nums[i];
+            if (index.containsKey(need)) {
+                return new int[]{index.get(need), i};
+            }
+            index.put(nums[i], i);
+        }
+        return new int[]{-1, -1};
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(n)`。
+
+#### 基础语法与算法思想
+
+- `nums.length`：数组长度。
+- `new int[]{i, j}`：创建并返回一个匿名整型数组。
+- `Map<Integer, Integer>`：泛型哈希表，键和值都是整数包装类型。
+- 核心思想：用空间换时间，把“找另一个数”从遍历变成哈希查询。
+
 ---
 
 ## 2. 两数相加 (Medium)
@@ -73,6 +128,82 @@
 每个链表中的节点数在范围  `[1, 100]`  内
  `0 <= Node.val <= 9` 
 题目数据保证列表表示的数字不含前导零
+
+### Java 解法补充
+
+#### 基础解法：逐位相加
+
+算法思想：链表已经按逆序存储，正好从个位开始相加。每次读取两个节点的值和上一位进位 `carry`，新节点保存 `sum % 10`，新的进位是 `sum / 10`。
+
+```java
+class Solution {
+    public ListNode addTwoNumbers(ListNode l1, ListNode l2) {
+        ListNode dummy = new ListNode(0);
+        ListNode cur = dummy;
+        int carry = 0;
+
+        while (l1 != null || l2 != null) {
+            int x = l1 == null ? 0 : l1.val;
+            int y = l2 == null ? 0 : l2.val;
+            int sum = x + y + carry;
+
+            carry = sum / 10;
+            cur.next = new ListNode(sum % 10);
+            cur = cur.next;
+
+            if (l1 != null) l1 = l1.next;
+            if (l2 != null) l2 = l2.next;
+        }
+
+        if (carry > 0) {
+            cur.next = new ListNode(carry);
+        }
+        return dummy.next;
+    }
+}
+```
+
+复杂度：时间 `O(max(m, n))`，空间 `O(max(m, n))`，其中空间为返回链表。
+
+#### 资深解法：把进位并入循环条件
+
+算法思想：把 `carry != 0` 也放进循环条件，最后一位进位不用单独写分支。用小工具函数读取可空节点的值，主流程更集中。
+
+```java
+class Solution {
+    public ListNode addTwoNumbers(ListNode l1, ListNode l2) {
+        ListNode dummy = new ListNode(0);
+        ListNode tail = dummy;
+        int carry = 0;
+
+        while (l1 != null || l2 != null || carry != 0) {
+            int sum = valueOf(l1) + valueOf(l2) + carry;
+            carry = sum / 10;
+
+            tail.next = new ListNode(sum % 10);
+            tail = tail.next;
+
+            l1 = l1 == null ? null : l1.next;
+            l2 = l2 == null ? null : l2.next;
+        }
+
+        return dummy.next;
+    }
+
+    private int valueOf(ListNode node) {
+        return node == null ? 0 : node.val;
+    }
+}
+```
+
+复杂度：时间 `O(max(m, n))`，空间 `O(max(m, n))`。
+
+#### 基础语法与算法思想
+
+- `ListNode dummy = new ListNode(0)`：虚拟头结点，避免单独处理结果链表的第一个节点。
+- `cur.next = new ListNode(...)`：创建新节点并接到链表尾部。
+- 三元表达式 `条件 ? 值1 : 值2`：常用于空节点给默认值。
+- 核心思想：模拟小学竖式加法，链表节点移动就是数字位数向高位推进。
 
 ---
 
@@ -111,6 +242,70 @@
  `0 <= s.length <= 5 * 104` 
  `s`  由英文字母、数字、符号和空格组成
 
+### Java 解法补充
+
+#### 基础解法：枚举起点并向右扩展
+
+算法思想：以每个位置作为子串起点，向右扩展并用布尔数组记录字符是否出现过。遇到重复字符就停止当前起点的扩展。
+
+```java
+class Solution {
+    public int lengthOfLongestSubstring(String s) {
+        int ans = 0;
+        for (int left = 0; left < s.length(); left++) {
+            boolean[] seen = new boolean[128];
+            for (int right = left; right < s.length(); right++) {
+                char c = s.charAt(right);
+                if (seen[c]) {
+                    break;
+                }
+                seen[c] = true;
+                ans = Math.max(ans, right - left + 1);
+            }
+        }
+        return ans;
+    }
+}
+```
+
+复杂度：时间 `O(n^2)`，空间 `O(1)`，字符集大小视为常数。
+
+#### 资深解法：滑动窗口
+
+算法思想：维护一个无重复窗口 `[left, right]`。如果 `s[right]` 上次出现位置在窗口内，就把 `left` 跳到上次位置之后。
+
+```java
+import java.util.Arrays;
+
+class Solution {
+    public int lengthOfLongestSubstring(String s) {
+        int[] last = new int[128];
+        Arrays.fill(last, -1);
+
+        int ans = 0;
+        int left = 0;
+        for (int right = 0; right < s.length(); right++) {
+            char c = s.charAt(right);
+            if (last[c] >= left) {
+                left = last[c] + 1;
+            }
+            last[c] = right;
+            ans = Math.max(ans, right - left + 1);
+        }
+        return ans;
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(1)`。
+
+#### 基础语法与算法思想
+
+- `s.charAt(i)`：读取字符串第 `i` 个字符。
+- `Arrays.fill(last, -1)`：把数组全部填为指定值。
+- `Math.max(a, b)`：取较大值。
+- 核心思想：滑动窗口适合“连续子串/子数组 + 约束条件”的题；右边界扩张，左边界只向右移动。
+
 ---
 
 ## 4. 寻找两个正序数组的中位数 (Hard)
@@ -145,6 +340,95 @@
  `1 <= m + n <= 2000` 
  `-106 <= nums1[i], nums2[i] <= 106`
 
+### Java 解法补充
+
+#### 基础解法：归并后取中位数
+
+算法思想：两个数组已经有序，按归并排序的合并过程生成一个有序数组，再根据总长度奇偶性取中位数。
+
+```java
+class Solution {
+    public double findMedianSortedArrays(int[] nums1, int[] nums2) {
+        int m = nums1.length;
+        int n = nums2.length;
+        int[] merged = new int[m + n];
+        int i = 0;
+        int j = 0;
+        int k = 0;
+
+        while (i < m || j < n) {
+            if (j == n || (i < m && nums1[i] <= nums2[j])) {
+                merged[k++] = nums1[i++];
+            } else {
+                merged[k++] = nums2[j++];
+            }
+        }
+
+        int total = m + n;
+        if (total % 2 == 1) {
+            return merged[total / 2];
+        }
+        return (merged[total / 2 - 1] + merged[total / 2]) / 2.0;
+    }
+}
+```
+
+复杂度：时间 `O(m + n)`，空间 `O(m + n)`。
+
+#### 资深解法：在较短数组上二分切分
+
+算法思想：中位数本质是把两个数组切成左右两部分，左半部分元素数量等于或比右半部分多 1，并且左半部分最大值不大于右半部分最小值。只需要在较短数组上二分切分点。
+
+```java
+class Solution {
+    public double findMedianSortedArrays(int[] nums1, int[] nums2) {
+        if (nums1.length > nums2.length) {
+            return findMedianSortedArrays(nums2, nums1);
+        }
+
+        int m = nums1.length;
+        int n = nums2.length;
+        int leftSize = (m + n + 1) / 2;
+        int low = 0;
+        int high = m;
+
+        while (low <= high) {
+            int i = low + (high - low) / 2;
+            int j = leftSize - i;
+
+            int aLeft = i == 0 ? Integer.MIN_VALUE : nums1[i - 1];
+            int aRight = i == m ? Integer.MAX_VALUE : nums1[i];
+            int bLeft = j == 0 ? Integer.MIN_VALUE : nums2[j - 1];
+            int bRight = j == n ? Integer.MAX_VALUE : nums2[j];
+
+            if (aLeft <= bRight && bLeft <= aRight) {
+                int leftMax = Math.max(aLeft, bLeft);
+                if ((m + n) % 2 == 1) {
+                    return leftMax;
+                }
+                int rightMin = Math.min(aRight, bRight);
+                return (leftMax + rightMin) / 2.0;
+            } else if (aLeft > bRight) {
+                high = i - 1;
+            } else {
+                low = i + 1;
+            }
+        }
+
+        return 0.0;
+    }
+}
+```
+
+复杂度：时间 `O(log min(m, n))`，空间 `O(1)`。
+
+#### 基础语法与算法思想
+
+- `Integer.MIN_VALUE` / `Integer.MAX_VALUE`：用作越界切分时的哨兵值。
+- `low + (high - low) / 2`：避免二分中点相加溢出。
+- `return (a + b) / 2.0`：除以 `2.0` 得到浮点结果。
+- 核心思想：有序数组题先考虑二分；本题二分的对象不是答案值，而是数组切分位置。
+
 ---
 
 ## 5. 最长回文子串 (Medium)
@@ -171,6 +455,83 @@
 
  `1 <= s.length <= 1000` 
  `s`  仅由数字和英文字母组成
+
+### Java 解法补充
+
+#### 基础解法：枚举所有子串
+
+算法思想：枚举子串左右端点，判断这个子串是否为回文，并记录最长答案。写法直接，但重复判断很多。
+
+```java
+class Solution {
+    public String longestPalindrome(String s) {
+        String ans = "";
+        for (int left = 0; left < s.length(); left++) {
+            for (int right = left; right < s.length(); right++) {
+                if (right - left + 1 > ans.length() && isPalindrome(s, left, right)) {
+                    ans = s.substring(left, right + 1);
+                }
+            }
+        }
+        return ans;
+    }
+
+    private boolean isPalindrome(String s, int left, int right) {
+        while (left < right) {
+            if (s.charAt(left) != s.charAt(right)) {
+                return false;
+            }
+            left++;
+            right--;
+        }
+        return true;
+    }
+}
+```
+
+复杂度：时间 `O(n^3)`，空间 `O(1)`。
+
+#### 资深解法：中心扩展
+
+算法思想：回文串从中心向两侧对称扩展。中心可能是一个字符，也可能是两个字符之间的位置，因此每个下标都尝试奇数中心和偶数中心。
+
+```java
+class Solution {
+    public String longestPalindrome(String s) {
+        int bestLeft = 0;
+        int bestRight = 0;
+
+        for (int i = 0; i < s.length(); i++) {
+            int len1 = expand(s, i, i);
+            int len2 = expand(s, i, i + 1);
+            int len = Math.max(len1, len2);
+
+            if (len > bestRight - bestLeft + 1) {
+                bestLeft = i - (len - 1) / 2;
+                bestRight = i + len / 2;
+            }
+        }
+
+        return s.substring(bestLeft, bestRight + 1);
+    }
+
+    private int expand(String s, int left, int right) {
+        while (left >= 0 && right < s.length() && s.charAt(left) == s.charAt(right)) {
+            left--;
+            right++;
+        }
+        return right - left - 1;
+    }
+}
+```
+
+复杂度：时间 `O(n^2)`，空间 `O(1)`。
+
+#### 基础语法与算法思想
+
+- `s.substring(left, right + 1)`：截取闭区间 `[left, right]` 时，右端要写成 `right + 1`。
+- `private` 方法：把判断回文或扩展逻辑拆成辅助函数。
+- 核心思想：回文问题优先想“对称中心”，再考虑 DP 或 Manacher。
 
 ---
 
@@ -226,6 +587,84 @@ P     I
  `s`  由英文字母（小写和大写）、 `','`  和  `'.'`  组成
  `1 <= numRows <= 1000`
 
+### Java 解法补充
+
+#### 基础解法：逐字符模拟行走
+
+算法思想：准备 `numRows` 个 `StringBuilder` 表示每一行，指针从上到下再从下到上移动，把字符放到对应行，最后拼接所有行。
+
+```java
+class Solution {
+    public String convert(String s, int numRows) {
+        if (numRows == 1 || numRows >= s.length()) {
+            return s;
+        }
+
+        StringBuilder[] rows = new StringBuilder[numRows];
+        for (int i = 0; i < numRows; i++) {
+            rows[i] = new StringBuilder();
+        }
+
+        int row = 0;
+        int direction = 1;
+        for (int i = 0; i < s.length(); i++) {
+            rows[row].append(s.charAt(i));
+            if (row == 0) {
+                direction = 1;
+            } else if (row == numRows - 1) {
+                direction = -1;
+            }
+            row += direction;
+        }
+
+        StringBuilder ans = new StringBuilder();
+        for (StringBuilder builder : rows) {
+            ans.append(builder);
+        }
+        return ans.toString();
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(n)`。
+
+#### 资深解法：按周期直接取字符
+
+算法思想：Z 字形每个周期长度为 `2 * numRows - 2`。逐行收集字符时，首尾行每个周期取一个字符，中间行每个周期取两个字符。
+
+```java
+class Solution {
+    public String convert(String s, int numRows) {
+        if (numRows == 1 || numRows >= s.length()) {
+            return s;
+        }
+
+        int cycle = 2 * numRows - 2;
+        StringBuilder ans = new StringBuilder();
+
+        for (int row = 0; row < numRows; row++) {
+            for (int start = row; start < s.length(); start += cycle) {
+                ans.append(s.charAt(start));
+                int diagonal = start + cycle - 2 * row;
+                if (row != 0 && row != numRows - 1 && diagonal < s.length()) {
+                    ans.append(s.charAt(diagonal));
+                }
+            }
+        }
+
+        return ans.toString();
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(n)`。
+
+#### 基础语法与算法思想
+
+- `StringBuilder[] rows = new StringBuilder[numRows]`：创建对象数组后，每个格子还要单独 `new`。
+- 增强 `for`：`for (StringBuilder builder : rows)` 遍历数组元素。
+- 核心思想：模拟题可以先按过程写；熟练后寻找周期或数学规律，减少状态变量。
+
 ---
 
 ## 7. 整数反转 (Medium)
@@ -266,6 +705,73 @@ P     I
 提示：
 
  `-231 <= x <= 231 - 1`
+
+### Java 解法补充
+
+#### 基础解法：字符串反转并捕获溢出
+
+算法思想：把整数转成字符串，去掉负号后反转，再尝试解析回 `int`。如果解析溢出，`Integer.parseInt` 会抛异常，返回 0。
+
+```java
+class Solution {
+    public int reverse(int x) {
+        String s = Integer.toString(x);
+        boolean negative = s.charAt(0) == '-';
+        String body = negative ? s.substring(1) : s;
+        String reversed = new StringBuilder(body).reverse().toString();
+        if (negative) {
+            reversed = "-" + reversed;
+        }
+
+        try {
+            return Integer.parseInt(reversed);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+}
+```
+
+复杂度：时间 `O(d)`，空间 `O(d)`，`d` 为数字位数。
+
+#### 资深解法：整数逐位反转并提前判断溢出
+
+算法思想：每次取出末位 `digit = x % 10`，准备执行 `ans = ans * 10 + digit`。在乘 10 和加 digit 之前先判断是否越界。
+
+```java
+class Solution {
+    public int reverse(int x) {
+        int ans = 0;
+
+        while (x != 0) {
+            int digit = x % 10;
+            x /= 10;
+
+            if (ans > Integer.MAX_VALUE / 10 ||
+                    (ans == Integer.MAX_VALUE / 10 && digit > 7)) {
+                return 0;
+            }
+            if (ans < Integer.MIN_VALUE / 10 ||
+                    (ans == Integer.MIN_VALUE / 10 && digit < -8)) {
+                return 0;
+            }
+
+            ans = ans * 10 + digit;
+        }
+
+        return ans;
+    }
+}
+```
+
+复杂度：时间 `O(d)`，空间 `O(1)`。
+
+#### 基础语法与算法思想
+
+- `x % 10`：取个位；Java 中负数取模仍保留负号，例如 `-123 % 10 == -3`。
+- `x /= 10`：去掉个位。
+- `try/catch`：捕获异常，适合基础版理解溢出。
+- 核心思想：整数边界题要在危险操作之前判断，而不是操作之后再补救。
 
 ---
 
@@ -355,6 +861,91 @@ P     I
  `0 <= s.length <= 200` 
  `s`  由英文字母（大写和小写）、数字（ `0-9` ）、 `' '` 、 `'+'` 、 `'-'`  和  `'.'`  组成
 
+### Java 解法补充
+
+#### 基础解法：按规则扫描
+
+算法思想：按题目规则分四步处理：跳过前导空格、读取符号、读取连续数字、超过范围时截断。
+
+```java
+class Solution {
+    public int myAtoi(String s) {
+        int i = 0;
+        int n = s.length();
+
+        while (i < n && s.charAt(i) == ' ') {
+            i++;
+        }
+
+        int sign = 1;
+        if (i < n && (s.charAt(i) == '+' || s.charAt(i) == '-')) {
+            sign = s.charAt(i) == '-' ? -1 : 1;
+            i++;
+        }
+
+        long value = 0;
+        while (i < n && Character.isDigit(s.charAt(i))) {
+            value = value * 10 + (s.charAt(i) - '0');
+            if (sign == 1 && value > Integer.MAX_VALUE) {
+                return Integer.MAX_VALUE;
+            }
+            if (sign == -1 && -value < Integer.MIN_VALUE) {
+                return Integer.MIN_VALUE;
+            }
+            i++;
+        }
+
+        return (int) (value * sign);
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(1)`。
+
+#### 资深解法：用 int 边界提前截断
+
+算法思想：不用 `long` 存大数，而是在 `ans = ans * 10 + digit` 之前判断是否会超过正数边界。负数边界比正数多 1，最终按符号返回对应截断值。
+
+```java
+class Solution {
+    public int myAtoi(String s) {
+        int i = 0;
+        int n = s.length();
+
+        while (i < n && s.charAt(i) == ' ') {
+            i++;
+        }
+
+        int sign = 1;
+        if (i < n && (s.charAt(i) == '+' || s.charAt(i) == '-')) {
+            sign = s.charAt(i) == '-' ? -1 : 1;
+            i++;
+        }
+
+        int ans = 0;
+        while (i < n && Character.isDigit(s.charAt(i))) {
+            int digit = s.charAt(i) - '0';
+            if (ans > (Integer.MAX_VALUE - digit) / 10) {
+                return sign == 1 ? Integer.MAX_VALUE : Integer.MIN_VALUE;
+            }
+            ans = ans * 10 + digit;
+            i++;
+        }
+
+        return sign * ans;
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(1)`。
+
+#### 基础语法与算法思想
+
+- `Character.isDigit(c)`：判断字符是否为数字。
+- `s.charAt(i) - '0'`：把数字字符转成整数。
+- `(int) value`：强制类型转换。
+- 核心思想：字符串解析题适合拆成有限步骤，每一步只消费自己负责的字符。
+
 ---
 
 ## 9. 回文数 (Easy)
@@ -395,6 +986,65 @@ P     I
 
  
 进阶：你能不将整数转为字符串来解决这个问题吗？
+
+### Java 解法补充
+
+#### 基础解法：转字符串双指针
+
+算法思想：把整数转成字符串，用左右指针从两端向中间比较。只要有一对字符不同，就不是回文。
+
+```java
+class Solution {
+    public boolean isPalindrome(int x) {
+        String s = Integer.toString(x);
+        int left = 0;
+        int right = s.length() - 1;
+
+        while (left < right) {
+            if (s.charAt(left) != s.charAt(right)) {
+                return false;
+            }
+            left++;
+            right--;
+        }
+
+        return true;
+    }
+}
+```
+
+复杂度：时间 `O(d)`，空间 `O(d)`，`d` 为数字位数。
+
+#### 资深解法：反转后一半数字
+
+算法思想：负数一定不是回文；非零且末尾是 0 的数也不是回文。之后只反转数字后一半，当 `reversed >= x` 时停止，再比较两半是否相等。
+
+```java
+class Solution {
+    public boolean isPalindrome(int x) {
+        if (x < 0 || (x != 0 && x % 10 == 0)) {
+            return false;
+        }
+
+        int reversed = 0;
+        while (x > reversed) {
+            reversed = reversed * 10 + x % 10;
+            x /= 10;
+        }
+
+        return x == reversed || x == reversed / 10;
+    }
+}
+```
+
+复杂度：时间 `O(d)`，空间 `O(1)`。
+
+#### 基础语法与算法思想
+
+- `||`：逻辑或，用来组合两个可接受条件。
+- `x % 10 == 0`：判断末位是否为 0。
+- `reversed / 10`：奇数位数字时去掉中间位。
+- 核心思想：只反转一半可以避免完整反转的溢出风险。
 
 ---
 
@@ -441,6 +1091,95 @@ P     I
  `p`  只包含从  `a-z`  的小写字母，以及字符  `.`  和  `*` 。
 保证每次出现字符  `*`  时，前面都匹配到有效的字符
 
+### Java 解法补充
+
+#### 基础解法：记忆化递归
+
+算法思想：定义 `match(i, j)` 表示 `s` 从 `i` 开始的后缀能否匹配 `p` 从 `j` 开始的后缀。若 `p[j + 1]` 是 `*`，可以让前一个元素出现 0 次，也可以在当前字符匹配时消耗 `s[i]` 并继续留在同一个模式位置。
+
+```java
+class Solution {
+    private Boolean[][] memo;
+
+    public boolean isMatch(String s, String p) {
+        memo = new Boolean[s.length() + 1][p.length() + 1];
+        return dfs(s, p, 0, 0);
+    }
+
+    private boolean dfs(String s, String p, int i, int j) {
+        if (memo[i][j] != null) {
+            return memo[i][j];
+        }
+
+        boolean ans;
+        if (j == p.length()) {
+            ans = i == s.length();
+        } else {
+            boolean firstMatch = i < s.length() &&
+                    (p.charAt(j) == s.charAt(i) || p.charAt(j) == '.');
+
+            if (j + 1 < p.length() && p.charAt(j + 1) == '*') {
+                ans = dfs(s, p, i, j + 2) || (firstMatch && dfs(s, p, i + 1, j));
+            } else {
+                ans = firstMatch && dfs(s, p, i + 1, j + 1);
+            }
+        }
+
+        memo[i][j] = ans;
+        return ans;
+    }
+}
+```
+
+复杂度：时间 `O(mn)`，空间 `O(mn)`，`m = s.length()`，`n = p.length()`。
+
+#### 资深解法：自底向上动态规划
+
+算法思想：`dp[i][j]` 表示 `s` 的前 `i` 个字符能否匹配 `p` 的前 `j` 个字符。遇到普通字符或 `.` 时，看前一格；遇到 `*` 时，先考虑它让前一个字符出现 0 次，再考虑出现至少 1 次。
+
+```java
+class Solution {
+    public boolean isMatch(String s, String p) {
+        int m = s.length();
+        int n = p.length();
+        boolean[][] dp = new boolean[m + 1][n + 1];
+        dp[0][0] = true;
+
+        for (int j = 2; j <= n; j++) {
+            if (p.charAt(j - 1) == '*') {
+                dp[0][j] = dp[0][j - 2];
+            }
+        }
+
+        for (int i = 1; i <= m; i++) {
+            for (int j = 1; j <= n; j++) {
+                char pc = p.charAt(j - 1);
+                if (pc == '*') {
+                    dp[i][j] = dp[i][j - 2];
+                    char prev = p.charAt(j - 2);
+                    if (prev == '.' || prev == s.charAt(i - 1)) {
+                        dp[i][j] = dp[i][j] || dp[i - 1][j];
+                    }
+                } else if (pc == '.' || pc == s.charAt(i - 1)) {
+                    dp[i][j] = dp[i - 1][j - 1];
+                }
+            }
+        }
+
+        return dp[m][n];
+    }
+}
+```
+
+复杂度：时间 `O(mn)`，空间 `O(mn)`。
+
+#### 基础语法与算法思想
+
+- `Boolean[][] memo`：包装类型可以用 `null` 表示“还没算过”。
+- `boolean[][] dp`：二维布尔表，默认值为 `false`。
+- `&&` 和 `||`：递归和 DP 中常用来组合状态。
+- 核心思想：含 `*` 的匹配题必须拆成两种情况：前一个元素出现 0 次，或当前字符匹配后继续消耗。
+
 ---
 
 ## 11. 盛最多水的容器 (Medium)
@@ -471,6 +1210,63 @@ P     I
  `n == height.length` 
  `2 <= n <= 105` 
  `0 <= height[i] <= 104`
+
+### Java 解法补充
+
+#### 基础解法：枚举两条线
+
+算法思想：枚举所有左右边界 `(i, j)`，容器高度由较短线决定，宽度是 `j - i`，面积为 `min(height[i], height[j]) * (j - i)`。
+
+```java
+class Solution {
+    public int maxArea(int[] height) {
+        int ans = 0;
+        for (int i = 0; i < height.length; i++) {
+            for (int j = i + 1; j < height.length; j++) {
+                int area = Math.min(height[i], height[j]) * (j - i);
+                ans = Math.max(ans, area);
+            }
+        }
+        return ans;
+    }
+}
+```
+
+复杂度：时间 `O(n^2)`，空间 `O(1)`。
+
+#### 资深解法：双指针
+
+算法思想：左右指针从两端开始。当前面积受较短线限制，移动较长线不会让高度变大，只会让宽度变小，所以每次移动较短线。
+
+```java
+class Solution {
+    public int maxArea(int[] height) {
+        int left = 0;
+        int right = height.length - 1;
+        int ans = 0;
+
+        while (left < right) {
+            int area = Math.min(height[left], height[right]) * (right - left);
+            ans = Math.max(ans, area);
+            if (height[left] < height[right]) {
+                left++;
+            } else {
+                right--;
+            }
+        }
+
+        return ans;
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(1)`。
+
+#### 基础语法与算法思想
+
+- `Math.min(a, b)`：取较小值。
+- 双指针常用于数组两端向中间收缩。
+- 核心思想：本题的贪心依据是“面积短板由短线决定”，所以只移动短线才可能获得更高高度。
 
 ---
 
@@ -553,6 +1349,61 @@ M
 
  `1 <= num <= 3999`
 
+### Java 解法补充
+
+#### 基础解法：贪心减法
+
+算法思想：从大到小列出所有罗马数值和符号，每次尽量使用当前最大符号，直到数字减为 0。
+
+```java
+class Solution {
+    public String intToRoman(int num) {
+        int[] values = {1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1};
+        String[] symbols = {"M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I"};
+        StringBuilder ans = new StringBuilder();
+
+        for (int i = 0; i < values.length; i++) {
+            while (num >= values[i]) {
+                num -= values[i];
+                ans.append(symbols[i]);
+            }
+        }
+
+        return ans.toString();
+    }
+}
+```
+
+复杂度：时间 `O(1)`，空间 `O(1)`，因为输入范围固定。
+
+#### 资深解法：按位查表
+
+算法思想：罗马数字的千位、百位、十位、个位各自只有 10 种以内的固定写法，直接按数位查表拼接，代码更短且不需要循环减法。
+
+```java
+class Solution {
+    public String intToRoman(int num) {
+        String[] thousands = {"", "M", "MM", "MMM"};
+        String[] hundreds = {"", "C", "CC", "CCC", "CD", "D", "DC", "DCC", "DCCC", "CM"};
+        String[] tens = {"", "X", "XX", "XXX", "XL", "L", "LX", "LXX", "LXXX", "XC"};
+        String[] ones = {"", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX"};
+
+        return thousands[num / 1000]
+                + hundreds[num % 1000 / 100]
+                + tens[num % 100 / 10]
+                + ones[num % 10];
+    }
+}
+```
+
+复杂度：时间 `O(1)`，空间 `O(1)`。
+
+#### 基础语法与算法思想
+
+- `StringBuilder`：频繁拼接字符串时更高效。
+- 字符串数组可作为查表结构，直接用下标取固定答案。
+- 核心思想：映射规则固定且范围很小时，查表通常比复杂判断更清晰。
+
 ---
 
 ## 13. 罗马数字转整数 (Easy)
@@ -626,6 +1477,86 @@ M             1000
 IL 和 IM 这样的例子并不符合题目要求，49 应该写作 XLIX，999 应该写作 CMXCIX 。
 关于罗马数字的详尽书写规则，可以参考 罗马数字 - 百度百科。
 
+### Java 解法补充
+
+#### 基础解法：从左到右识别减法对
+
+算法思想：如果当前符号小于右侧符号，说明它和右侧组成减法形式，例如 `IV`、`CM`，本轮减去当前值；否则加上当前值。
+
+```java
+class Solution {
+    public int romanToInt(String s) {
+        int ans = 0;
+        for (int i = 0; i < s.length(); i++) {
+            int cur = valueOf(s.charAt(i));
+            if (i + 1 < s.length() && cur < valueOf(s.charAt(i + 1))) {
+                ans -= cur;
+            } else {
+                ans += cur;
+            }
+        }
+        return ans;
+    }
+
+    private int valueOf(char c) {
+        if (c == 'I') return 1;
+        if (c == 'V') return 5;
+        if (c == 'X') return 10;
+        if (c == 'L') return 50;
+        if (c == 'C') return 100;
+        if (c == 'D') return 500;
+        return 1000;
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(1)`。
+
+#### 资深解法：从右到左维护右侧最大值
+
+算法思想：从右向左扫描，若当前值小于右侧已经见过的最大值，就减去它；否则加上它并更新最大值。
+
+```java
+class Solution {
+    public int romanToInt(String s) {
+        int ans = 0;
+        int maxRight = 0;
+
+        for (int i = s.length() - 1; i >= 0; i--) {
+            int cur = valueOf(s.charAt(i));
+            if (cur < maxRight) {
+                ans -= cur;
+            } else {
+                ans += cur;
+                maxRight = cur;
+            }
+        }
+
+        return ans;
+    }
+
+    private int valueOf(char c) {
+        switch (c) {
+            case 'I': return 1;
+            case 'V': return 5;
+            case 'X': return 10;
+            case 'L': return 50;
+            case 'C': return 100;
+            case 'D': return 500;
+            default: return 1000;
+        }
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(1)`。
+
+#### 基础语法与算法思想
+
+- `char`：保存单个字符。
+- `switch`：适合把少量固定字符映射成固定值。
+- 核心思想：罗马数字的减法只发生在小值位于大值左侧时。
+
 ---
 
 ## 14. 最长公共前缀 (Easy)
@@ -654,6 +1585,61 @@ IL 和 IM 这样的例子并不符合题目要求，49 应该写作 XLIX，999 �
  `1 <= strs.length <= 200` 
  `0 <= strs[i].length <= 200` 
  `strs[i]`  如果非空，则仅由小写英文字母组成
+
+### Java 解法补充
+
+#### 基础解法：逐步缩短前缀
+
+算法思想：先把第一个字符串当作公共前缀，再逐个检查后面的字符串。如果某个字符串不是以当前前缀开头，就不断删除前缀最后一个字符。
+
+```java
+class Solution {
+    public String longestCommonPrefix(String[] strs) {
+        String prefix = strs[0];
+
+        for (int i = 1; i < strs.length; i++) {
+            while (!strs[i].startsWith(prefix)) {
+                prefix = prefix.substring(0, prefix.length() - 1);
+                if (prefix.isEmpty()) {
+                    return "";
+                }
+            }
+        }
+
+        return prefix;
+    }
+}
+```
+
+复杂度：时间 `O(S)`，空间 `O(1)`，`S` 为所有字符串总字符数级别。
+
+#### 资深解法：纵向扫描
+
+算法思想：按列比较所有字符串的同一位置。只要某个字符串到头或字符不一致，就返回第一列到当前列之前的部分。
+
+```java
+class Solution {
+    public String longestCommonPrefix(String[] strs) {
+        for (int col = 0; col < strs[0].length(); col++) {
+            char c = strs[0].charAt(col);
+            for (int row = 1; row < strs.length; row++) {
+                if (col == strs[row].length() || strs[row].charAt(col) != c) {
+                    return strs[0].substring(0, col);
+                }
+            }
+        }
+        return strs[0];
+    }
+}
+```
+
+复杂度：时间 `O(S)`，空间 `O(1)`。
+
+#### 基础语法与算法思想
+
+- `startsWith(prefix)`：判断字符串是否以指定前缀开头。
+- `isEmpty()`：判断字符串长度是否为 0。
+- 核心思想：公共前缀一旦某一列不一致，后面不可能再成为前缀。
 
 ---
 
@@ -698,6 +1684,95 @@ nums[0] + nums[3] + nums[4] = (-1) + 2 + (-1) = 0 。
  `3 <= nums.length <= 3000` 
  `-105 <= nums[i] <= 105`
 
+### Java 解法补充
+
+#### 基础解法：三重循环加去重集合
+
+算法思想：枚举所有三元组，命中和为 0 后放入集合去重。为了让同一组数字有相同表示，先对数组排序。
+
+```java
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+class Solution {
+    public List<List<Integer>> threeSum(int[] nums) {
+        Arrays.sort(nums);
+        Set<List<Integer>> seen = new HashSet<>();
+
+        for (int i = 0; i < nums.length; i++) {
+            for (int j = i + 1; j < nums.length; j++) {
+                for (int k = j + 1; k < nums.length; k++) {
+                    if (nums[i] + nums[j] + nums[k] == 0) {
+                        seen.add(Arrays.asList(nums[i], nums[j], nums[k]));
+                    }
+                }
+            }
+        }
+
+        return new ArrayList<>(seen);
+    }
+}
+```
+
+复杂度：时间 `O(n^3)`，空间 `O(ans)`。
+
+#### 资深解法：排序加双指针
+
+算法思想：排序后固定第一个数 `i`，问题变成在右侧有序区间里找两个数之和为 `-nums[i]`。用左右指针收缩，并跳过重复值。
+
+```java
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+class Solution {
+    public List<List<Integer>> threeSum(int[] nums) {
+        Arrays.sort(nums);
+        List<List<Integer>> ans = new ArrayList<>();
+
+        for (int i = 0; i < nums.length - 2; i++) {
+            if (i > 0 && nums[i] == nums[i - 1]) {
+                continue;
+            }
+            if (nums[i] > 0) {
+                break;
+            }
+
+            int left = i + 1;
+            int right = nums.length - 1;
+            while (left < right) {
+                int sum = nums[i] + nums[left] + nums[right];
+                if (sum == 0) {
+                    ans.add(Arrays.asList(nums[i], nums[left], nums[right]));
+                    left++;
+                    right--;
+                    while (left < right && nums[left] == nums[left - 1]) left++;
+                    while (left < right && nums[right] == nums[right + 1]) right--;
+                } else if (sum < 0) {
+                    left++;
+                } else {
+                    right--;
+                }
+            }
+        }
+
+        return ans;
+    }
+}
+```
+
+复杂度：时间 `O(n^2)`，空间 `O(1)`，不计答案空间。
+
+#### 基础语法与算法思想
+
+- `Arrays.sort(nums)`：原地升序排序数组。
+- `List<List<Integer>>`：二维列表，保存多个三元组。
+- `Arrays.asList(a, b, c)`：快速创建固定元素列表。
+- 核心思想：排序后可用双指针把两数搜索从 `O(n^2)` 降到 `O(n)`。
+
 ---
 
 ## 16. 最接近的三数之和 (Medium)
@@ -729,6 +1804,79 @@ nums[0] + nums[3] + nums[4] = (-1) + 2 + (-1) = 0 。
  `-1000 <= nums[i] <= 1000` 
  `-104 <= target <= 104`
 
+### Java 解法补充
+
+#### 基础解法：枚举所有三元组
+
+算法思想：直接枚举所有三元组，维护与 `target` 差距最小的和。
+
+```java
+class Solution {
+    public int threeSumClosest(int[] nums, int target) {
+        int best = nums[0] + nums[1] + nums[2];
+
+        for (int i = 0; i < nums.length; i++) {
+            for (int j = i + 1; j < nums.length; j++) {
+                for (int k = j + 1; k < nums.length; k++) {
+                    int sum = nums[i] + nums[j] + nums[k];
+                    if (Math.abs(sum - target) < Math.abs(best - target)) {
+                        best = sum;
+                    }
+                }
+            }
+        }
+
+        return best;
+    }
+}
+```
+
+复杂度：时间 `O(n^3)`，空间 `O(1)`。
+
+#### 资深解法：排序加双指针
+
+算法思想：固定一个数后，用双指针搜索另外两个数。当前和小于目标时左指针右移，当前和大于目标时右指针左移。
+
+```java
+import java.util.Arrays;
+
+class Solution {
+    public int threeSumClosest(int[] nums, int target) {
+        Arrays.sort(nums);
+        int best = nums[0] + nums[1] + nums[2];
+
+        for (int i = 0; i < nums.length - 2; i++) {
+            int left = i + 1;
+            int right = nums.length - 1;
+
+            while (left < right) {
+                int sum = nums[i] + nums[left] + nums[right];
+                if (Math.abs(sum - target) < Math.abs(best - target)) {
+                    best = sum;
+                }
+                if (sum == target) {
+                    return target;
+                } else if (sum < target) {
+                    left++;
+                } else {
+                    right--;
+                }
+            }
+        }
+
+        return best;
+    }
+}
+```
+
+复杂度：时间 `O(n^2)`，空间 `O(1)`。
+
+#### 基础语法与算法思想
+
+- `Math.abs(x)`：绝对值，常用于比较差距。
+- 初始化答案时要用一个真实三元组，避免默认值干扰。
+- 核心思想：最接近问题不要求列出所有答案，只要在搜索过程中维护当前最优。
+
 ---
 
 ## 17. 电话号码的字母组合 (Medium)
@@ -756,6 +1904,88 @@ nums[0] + nums[3] + nums[4] = (-1) + 2 + (-1) = 0 。
 
  `1 <= digits.length <= 4` 
  `digits[i]`  是范围  `['2', '9']`  的一个数字。
+
+### Java 解法补充
+
+#### 基础解法：逐层扩展列表
+
+算法思想：从空字符串开始，每读取一个数字，就把当前所有前缀与该数字对应的每个字母拼接，形成下一层结果。
+
+```java
+import java.util.ArrayList;
+import java.util.List;
+
+class Solution {
+    public List<String> letterCombinations(String digits) {
+        List<String> ans = new ArrayList<>();
+        if (digits.length() == 0) {
+            return ans;
+        }
+
+        String[] map = {"", "", "abc", "def", "ghi", "jkl", "mno", "pqrs", "tuv", "wxyz"};
+        ans.add("");
+
+        for (int i = 0; i < digits.length(); i++) {
+            String letters = map[digits.charAt(i) - '0'];
+            List<String> next = new ArrayList<>();
+            for (String prefix : ans) {
+                for (int j = 0; j < letters.length(); j++) {
+                    next.add(prefix + letters.charAt(j));
+                }
+            }
+            ans = next;
+        }
+
+        return ans;
+    }
+}
+```
+
+复杂度：时间 `O(4^n * n)`，空间 `O(4^n * n)`。
+
+#### 资深解法：回溯
+
+算法思想：每一层选择当前数字对应的一个字母，加入路径；递归到长度等于数字串长度时收集答案；返回时撤销选择。
+
+```java
+import java.util.ArrayList;
+import java.util.List;
+
+class Solution {
+    private final String[] map = {"", "", "abc", "def", "ghi", "jkl", "mno", "pqrs", "tuv", "wxyz"};
+    private final List<String> ans = new ArrayList<>();
+
+    public List<String> letterCombinations(String digits) {
+        if (digits.length() == 0) {
+            return ans;
+        }
+        backtrack(digits, 0, new StringBuilder());
+        return ans;
+    }
+
+    private void backtrack(String digits, int index, StringBuilder path) {
+        if (index == digits.length()) {
+            ans.add(path.toString());
+            return;
+        }
+
+        String letters = map[digits.charAt(index) - '0'];
+        for (int i = 0; i < letters.length(); i++) {
+            path.append(letters.charAt(i));
+            backtrack(digits, index + 1, path);
+            path.deleteCharAt(path.length() - 1);
+        }
+    }
+}
+```
+
+复杂度：时间 `O(4^n * n)`，空间 `O(n)`，不计答案空间。
+
+#### 基础语法与算法思想
+
+- `List<String>`：字符串列表。
+- `path.append(c)` / `path.deleteCharAt(...)`：回溯中做选择和撤销选择。
+- 核心思想：组合生成题天然适合回溯，“层数”对应输入位置，“选择”对应当前数字的字母。
 
 ---
 
@@ -789,6 +2019,96 @@ nums[0] + nums[3] + nums[4] = (-1) + 2 + (-1) = 0 。
  `1 <= nums.length <= 200` 
  `-109 <= nums[i] <= 109` 
  `-109 <= target <= 109`
+
+### Java 解法补充
+
+#### 基础解法：四重循环加集合去重
+
+算法思想：枚举所有四元组，排序数组后同一组数字天然有固定顺序，放进集合去重。用 `long` 计算和，避免整数溢出。
+
+```java
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+class Solution {
+    public List<List<Integer>> fourSum(int[] nums, int target) {
+        Arrays.sort(nums);
+        Set<List<Integer>> seen = new HashSet<>();
+
+        for (int a = 0; a < nums.length; a++) {
+            for (int b = a + 1; b < nums.length; b++) {
+                for (int c = b + 1; c < nums.length; c++) {
+                    for (int d = c + 1; d < nums.length; d++) {
+                        long sum = (long) nums[a] + nums[b] + nums[c] + nums[d];
+                        if (sum == target) {
+                            seen.add(Arrays.asList(nums[a], nums[b], nums[c], nums[d]));
+                        }
+                    }
+                }
+            }
+        }
+
+        return new ArrayList<>(seen);
+    }
+}
+```
+
+复杂度：时间 `O(n^4)`，空间 `O(ans)`。
+
+#### 资深解法：排序加两层固定和双指针
+
+算法思想：固定前两个数，把问题转成有序区间内的两数之和。每一层都跳过重复值，并用 `long` 保存四数之和。
+
+```java
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+class Solution {
+    public List<List<Integer>> fourSum(int[] nums, int target) {
+        Arrays.sort(nums);
+        List<List<Integer>> ans = new ArrayList<>();
+        int n = nums.length;
+
+        for (int a = 0; a < n - 3; a++) {
+            if (a > 0 && nums[a] == nums[a - 1]) continue;
+            for (int b = a + 1; b < n - 2; b++) {
+                if (b > a + 1 && nums[b] == nums[b - 1]) continue;
+
+                int left = b + 1;
+                int right = n - 1;
+                while (left < right) {
+                    long sum = (long) nums[a] + nums[b] + nums[left] + nums[right];
+                    if (sum == target) {
+                        ans.add(Arrays.asList(nums[a], nums[b], nums[left], nums[right]));
+                        left++;
+                        right--;
+                        while (left < right && nums[left] == nums[left - 1]) left++;
+                        while (left < right && nums[right] == nums[right + 1]) right--;
+                    } else if (sum < target) {
+                        left++;
+                    } else {
+                        right--;
+                    }
+                }
+            }
+        }
+
+        return ans;
+    }
+}
+```
+
+复杂度：时间 `O(n^3)`，空间 `O(1)`，不计答案空间。
+
+#### 基础语法与算法思想
+
+- `(long) nums[a]`：先把第一个数转为 `long`，后续加法会按 `long` 计算。
+- `continue`：跳过当前循环剩余部分，常用于去重。
+- 核心思想：`kSum` 常见套路是排序、固定若干个数、最后用双指针处理两数之和。
 
 ---
 
@@ -827,6 +2147,72 @@ nums[0] + nums[3] + nums[4] = (-1) + 2 + (-1) = 0 。
 
  
 进阶：你能尝试使用一趟扫描实现吗？
+
+### Java 解法补充
+
+#### 基础解法：先统计长度
+
+算法思想：第一次遍历得到链表长度 `len`，要删除倒数第 `n` 个节点，也就是正数第 `len - n + 1` 个节点。用虚拟头结点处理删除头节点的情况。
+
+```java
+class Solution {
+    public ListNode removeNthFromEnd(ListNode head, int n) {
+        int len = 0;
+        ListNode cur = head;
+        while (cur != null) {
+            len++;
+            cur = cur.next;
+        }
+
+        ListNode dummy = new ListNode(0);
+        dummy.next = head;
+        cur = dummy;
+        for (int i = 0; i < len - n; i++) {
+            cur = cur.next;
+        }
+
+        cur.next = cur.next.next;
+        return dummy.next;
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(1)`。
+
+#### 资深解法：快慢指针一次遍历
+
+算法思想：让快指针先走 `n + 1` 步，使快慢指针之间隔着 `n` 个节点。之后同时移动，快指针到空时，慢指针正好在待删除节点前一个位置。
+
+```java
+class Solution {
+    public ListNode removeNthFromEnd(ListNode head, int n) {
+        ListNode dummy = new ListNode(0);
+        dummy.next = head;
+        ListNode fast = dummy;
+        ListNode slow = dummy;
+
+        for (int i = 0; i <= n; i++) {
+            fast = fast.next;
+        }
+
+        while (fast != null) {
+            fast = fast.next;
+            slow = slow.next;
+        }
+
+        slow.next = slow.next.next;
+        return dummy.next;
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(1)`。
+
+#### 基础语法与算法思想
+
+- `dummy.next = head`：把原链表接到虚拟头后面。
+- 删除节点本质是 `prev.next = prev.next.next`。
+- 核心思想：链表倒数问题常用快慢指针制造固定距离。
 
 ---
 
@@ -871,6 +2257,71 @@ nums[0] + nums[3] + nums[4] = (-1) + 2 + (-1) = 0 。
  `1 <= s.length <= 104` 
  `s`  仅由括号  `'()[]{}'`  组成
 
+### Java 解法补充
+
+#### 基础解法：反复消除成对括号
+
+算法思想：合法括号串中一定存在相邻的 `()`、`[]` 或 `{}`。反复删除这些成对括号，如果最后变成空串就是合法的。
+
+```java
+class Solution {
+    public boolean isValid(String s) {
+        int prevLength;
+        do {
+            prevLength = s.length();
+            s = s.replace("()", "")
+                    .replace("[]", "")
+                    .replace("{}", "");
+        } while (s.length() != prevLength);
+
+        return s.isEmpty();
+    }
+}
+```
+
+复杂度：时间 `O(n^2)`，空间 `O(n)`。
+
+#### 资深解法：栈
+
+算法思想：遇到左括号就把对应右括号压栈；遇到右括号时，必须和栈顶相同，否则无效。最后栈为空才表示全部匹配。
+
+```java
+import java.util.ArrayDeque;
+import java.util.Deque;
+
+class Solution {
+    public boolean isValid(String s) {
+        Deque<Character> stack = new ArrayDeque<>();
+
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '(') {
+                stack.push(')');
+            } else if (c == '[') {
+                stack.push(']');
+            } else if (c == '{') {
+                stack.push('}');
+            } else {
+                if (stack.isEmpty() || stack.pop() != c) {
+                    return false;
+                }
+            }
+        }
+
+        return stack.isEmpty();
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(n)`。
+
+#### 基础语法与算法思想
+
+- `String.replace(old, new)`：替换字符串中的指定片段。
+- `Deque<Character>`：双端队列，常用作栈。
+- `push` / `pop`：入栈和出栈。
+- 核心思想：括号匹配遵循“后打开的先关闭”，这正是栈的后进先出。
+
 ---
 
 ## 21. 合并两个有序链表 (Easy)
@@ -905,6 +2356,64 @@ nums[0] + nums[3] + nums[4] = (-1) + 2 + (-1) = 0 。
  `-100 <= Node.val <= 100` 
  `l1`  和  `l2`  均按 非递减顺序 排列
 
+### Java 解法补充
+
+#### 基础解法：递归合并
+
+算法思想：两个链表都已升序，每次选择较小头结点作为当前节点，剩余部分继续递归合并。
+
+```java
+class Solution {
+    public ListNode mergeTwoLists(ListNode list1, ListNode list2) {
+        if (list1 == null) return list2;
+        if (list2 == null) return list1;
+        if (list1.val <= list2.val) {
+            list1.next = mergeTwoLists(list1.next, list2);
+            return list1;
+        }
+        list2.next = mergeTwoLists(list1, list2.next);
+        return list2;
+    }
+}
+```
+
+复杂度：时间 `O(m + n)`，空间 `O(m + n)`，递归栈消耗。
+
+#### 资深解法：迭代加虚拟头结点
+
+算法思想：用 `tail` 指针维护结果链表尾部，每次接上两个链表中较小的当前节点，最后把剩余链表整体接上。
+
+```java
+class Solution {
+    public ListNode mergeTwoLists(ListNode list1, ListNode list2) {
+        ListNode dummy = new ListNode(0);
+        ListNode tail = dummy;
+
+        while (list1 != null && list2 != null) {
+            if (list1.val <= list2.val) {
+                tail.next = list1;
+                list1 = list1.next;
+            } else {
+                tail.next = list2;
+                list2 = list2.next;
+            }
+            tail = tail.next;
+        }
+
+        tail.next = list1 == null ? list2 : list1;
+        return dummy.next;
+    }
+}
+```
+
+复杂度：时间 `O(m + n)`，空间 `O(1)`。
+
+#### 基础语法与算法思想
+
+- `return list2`：递归边界，空链表与另一个链表合并就是另一个链表。
+- `tail.next = ...`：把节点接到结果链表尾部。
+- 核心思想：有序链表合并像归并排序的合并步骤。
+
 ---
 
 ## 22. 括号生成 (Medium)
@@ -929,6 +2438,91 @@ nums[0] + nums[3] + nums[4] = (-1) + 2 + (-1) = 0 。
 提示：
 
  `1 <= n <= 8`
+
+### Java 解法补充
+
+#### 基础解法：枚举所有括号串并校验
+
+算法思想：长度为 `2n` 的每个位置都可以放左括号或右括号，生成后用计数器判断是否合法。
+
+```java
+import java.util.ArrayList;
+import java.util.List;
+
+class Solution {
+    public List<String> generateParenthesis(int n) {
+        List<String> ans = new ArrayList<>();
+        build(new StringBuilder(), 2 * n, ans);
+        return ans;
+    }
+
+    private void build(StringBuilder path, int len, List<String> ans) {
+        if (path.length() == len) {
+            if (valid(path)) ans.add(path.toString());
+            return;
+        }
+        path.append('(');
+        build(path, len, ans);
+        path.deleteCharAt(path.length() - 1);
+        path.append(')');
+        build(path, len, ans);
+        path.deleteCharAt(path.length() - 1);
+    }
+
+    private boolean valid(StringBuilder s) {
+        int balance = 0;
+        for (int i = 0; i < s.length(); i++) {
+            balance += s.charAt(i) == '(' ? 1 : -1;
+            if (balance < 0) return false;
+        }
+        return balance == 0;
+    }
+}
+```
+
+复杂度：时间 `O(2^(2n) * n)`，空间 `O(n)`，不计答案空间。
+
+#### 资深解法：回溯剪枝
+
+算法思想：只生成合法前缀。左括号数量小于 `n` 时可以继续放左括号；右括号数量小于左括号数量时才可以放右括号。
+
+```java
+import java.util.ArrayList;
+import java.util.List;
+
+class Solution {
+    public List<String> generateParenthesis(int n) {
+        List<String> ans = new ArrayList<>();
+        backtrack(n, 0, 0, new StringBuilder(), ans);
+        return ans;
+    }
+
+    private void backtrack(int n, int open, int close, StringBuilder path, List<String> ans) {
+        if (path.length() == 2 * n) {
+            ans.add(path.toString());
+            return;
+        }
+        if (open < n) {
+            path.append('(');
+            backtrack(n, open + 1, close, path, ans);
+            path.deleteCharAt(path.length() - 1);
+        }
+        if (close < open) {
+            path.append(')');
+            backtrack(n, open, close + 1, path, ans);
+            path.deleteCharAt(path.length() - 1);
+        }
+    }
+}
+```
+
+复杂度：时间与合法括号数量成正比，空间 `O(n)`。
+
+#### 基础语法与算法思想
+
+- `StringBuilder` 用作可变路径，递归后要撤销选择。
+- `balance` 表示当前未闭合的左括号数量。
+- 核心思想：回溯的剪枝条件来自合法括号前缀的不变量。
 
 ---
 
@@ -976,6 +2570,78 @@ nums[0] + nums[3] + nums[4] = (-1) + 2 + (-1) = 0 。
  `lists[i]`  按 升序 排列
  `lists[i].length`  的总和不超过  `10^4`
 
+### Java 解法补充
+
+#### 基础解法：顺序两两合并
+
+算法思想：先拿一个空链表作为结果，再依次把每个链表合并进结果。复用两个有序链表合并函数。
+
+```java
+class Solution {
+    public ListNode mergeKLists(ListNode[] lists) {
+        ListNode ans = null;
+        for (ListNode list : lists) {
+            ans = merge(ans, list);
+        }
+        return ans;
+    }
+
+    private ListNode merge(ListNode a, ListNode b) {
+        ListNode dummy = new ListNode(0);
+        ListNode tail = dummy;
+        while (a != null && b != null) {
+            if (a.val <= b.val) {
+                tail.next = a;
+                a = a.next;
+            } else {
+                tail.next = b;
+                b = b.next;
+            }
+            tail = tail.next;
+        }
+        tail.next = a == null ? b : a;
+        return dummy.next;
+    }
+}
+```
+
+复杂度：时间最坏 `O(kN)`，空间 `O(1)`，`N` 为总节点数。
+
+#### 资深解法：优先队列
+
+算法思想：把每条链表的头节点放入小根堆，每次取出当前最小节点接到结果尾部，并把它的下一个节点放入堆。
+
+```java
+import java.util.PriorityQueue;
+
+class Solution {
+    public ListNode mergeKLists(ListNode[] lists) {
+        PriorityQueue<ListNode> heap = new PriorityQueue<>((a, b) -> a.val - b.val);
+        for (ListNode node : lists) {
+            if (node != null) heap.offer(node);
+        }
+
+        ListNode dummy = new ListNode(0);
+        ListNode tail = dummy;
+        while (!heap.isEmpty()) {
+            ListNode node = heap.poll();
+            tail.next = node;
+            tail = tail.next;
+            if (node.next != null) heap.offer(node.next);
+        }
+        return dummy.next;
+    }
+}
+```
+
+复杂度：时间 `O(N log k)`，空间 `O(k)`。
+
+#### 基础语法与算法思想
+
+- `PriorityQueue`：小根堆，适合动态获取最小元素。
+- Lambda `(a, b) -> a.val - b.val`：自定义节点比较规则。
+- 核心思想：多个有序流合并，用堆维护每个流的当前最小候选。
+
 ---
 
 ## 24. 两两交换链表中的节点 (Medium)
@@ -1009,6 +2675,61 @@ nums[0] + nums[3] + nums[4] = (-1) + 2 + (-1) = 0 。
 链表中节点的数目在范围  `[0, 100]`  内
  `0 <= Node.val <= 100`
 
+### Java 解法补充
+
+#### 基础解法：递归交换
+
+算法思想：每次处理前两个节点，交换后把原第一个节点接上后续递归交换结果。
+
+```java
+class Solution {
+    public ListNode swapPairs(ListNode head) {
+        if (head == null || head.next == null) {
+            return head;
+        }
+        ListNode second = head.next;
+        head.next = swapPairs(second.next);
+        second.next = head;
+        return second;
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(n)`，递归栈消耗。
+
+#### 资深解法：迭代原地交换
+
+算法思想：用虚拟头结点和 `prev` 指向待交换两节点之前的位置，反复重连 `a`、`b` 两个节点。
+
+```java
+class Solution {
+    public ListNode swapPairs(ListNode head) {
+        ListNode dummy = new ListNode(0);
+        dummy.next = head;
+        ListNode prev = dummy;
+
+        while (prev.next != null && prev.next.next != null) {
+            ListNode a = prev.next;
+            ListNode b = a.next;
+            a.next = b.next;
+            b.next = a;
+            prev.next = b;
+            prev = a;
+        }
+
+        return dummy.next;
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(1)`。
+
+#### 基础语法与算法思想
+
+- 改链表指针前先保存 `a`、`b`，避免断链。
+- `prev` 始终指向下一组待交换节点的前一个节点。
+- 核心思想：链表节点交换不能改值，只能重连 `next`。
+
 ---
 
 ## 25. K 个一组翻转链表 (Hard)
@@ -1040,6 +2761,89 @@ nums[0] + nums[3] + nums[4] = (-1) + 2 + (-1) = 0 。
 
  
 进阶：你可以设计一个只用  `O(1)`  额外内存空间的算法解决此问题吗？
+
+### Java 解法补充
+
+#### 基础解法：用数组暂存节点值
+
+算法思想：先把节点值读入数组，每 `k` 个一组反转数组中的值，再写回链表。这个写法容易理解，但题目进阶要求实际交换节点，面试中应继续掌握资深解法。
+
+```java
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+class Solution {
+    public ListNode reverseKGroup(ListNode head, int k) {
+        List<Integer> values = new ArrayList<>();
+        for (ListNode cur = head; cur != null; cur = cur.next) {
+            values.add(cur.val);
+        }
+        for (int i = 0; i + k <= values.size(); i += k) {
+            Collections.reverse(values.subList(i, i + k));
+        }
+        ListNode cur = head;
+        for (int value : values) {
+            cur.val = value;
+            cur = cur.next;
+        }
+        return head;
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(n)`。
+
+#### 资深解法：原地分组反转节点
+
+算法思想：每次检查后面是否有 `k` 个节点；若有，就反转 `[groupStart, groupEnd]` 这一段，再把前后链表接回去。
+
+```java
+class Solution {
+    public ListNode reverseKGroup(ListNode head, int k) {
+        ListNode dummy = new ListNode(0);
+        dummy.next = head;
+        ListNode groupPrev = dummy;
+
+        while (true) {
+            ListNode kth = getKth(groupPrev, k);
+            if (kth == null) break;
+            ListNode groupNext = kth.next;
+
+            ListNode prev = groupNext;
+            ListNode cur = groupPrev.next;
+            while (cur != groupNext) {
+                ListNode next = cur.next;
+                cur.next = prev;
+                prev = cur;
+                cur = next;
+            }
+
+            ListNode newTail = groupPrev.next;
+            groupPrev.next = kth;
+            groupPrev = newTail;
+        }
+
+        return dummy.next;
+    }
+
+    private ListNode getKth(ListNode cur, int k) {
+        while (cur != null && k > 0) {
+            cur = cur.next;
+            k--;
+        }
+        return cur;
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(1)`。
+
+#### 基础语法与算法思想
+
+- `Collections.reverse(list.subList(l, r))`：反转列表的左闭右开子视图。
+- 原地反转链表使用 `prev / cur / next` 三指针。
+- 核心思想：复杂链表题先划清“组前、组头、组尾、组后”四个位置。
 
 ---
 
@@ -1087,6 +2891,61 @@ for (int i = 0; i < k; i++) {
  `1 <= nums.length <= 3 * 104` 
  `-100 <= nums[i] <= 100` 
  `nums`  已按 非递减 顺序排列。
+
+### Java 解法补充
+
+#### 基础解法：借助列表收集唯一值
+
+算法思想：遍历有序数组，遇到第一个元素或与前一个元素不同的元素就加入列表，最后写回数组前部。
+
+```java
+import java.util.ArrayList;
+import java.util.List;
+
+class Solution {
+    public int removeDuplicates(int[] nums) {
+        List<Integer> unique = new ArrayList<>();
+        for (int i = 0; i < nums.length; i++) {
+            if (i == 0 || nums[i] != nums[i - 1]) {
+                unique.add(nums[i]);
+            }
+        }
+        for (int i = 0; i < unique.size(); i++) {
+            nums[i] = unique.get(i);
+        }
+        return unique.size();
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(n)`。
+
+#### 资深解法：快慢指针原地去重
+
+算法思想：`slow` 指向下一个唯一元素应写入的位置，`fast` 扫描数组。只要 `nums[fast]` 与前一个不同，就写到 `slow`。
+
+```java
+class Solution {
+    public int removeDuplicates(int[] nums) {
+        int slow = 1;
+        for (int fast = 1; fast < nums.length; fast++) {
+            if (nums[fast] != nums[fast - 1]) {
+                nums[slow] = nums[fast];
+                slow++;
+            }
+        }
+        return slow;
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(1)`。
+
+#### 基础语法与算法思想
+
+- 有序数组中重复元素一定相邻。
+- 原地数组题常用 `slow` 表示有效区间长度。
+- 核心思想：快指针负责读，慢指针负责写。
 
 ---
 
@@ -1144,6 +3003,59 @@ for (int i = 0; i < actualLength; i++) {
  `0 <= nums[i] <= 50` 
  `0 <= val <= 100`
 
+### Java 解法补充
+
+#### 基础解法：借助新数组过滤
+
+算法思想：把不等于 `val` 的元素复制到临时数组，再写回 `nums` 前部。
+
+```java
+class Solution {
+    public int removeElement(int[] nums, int val) {
+        int[] temp = new int[nums.length];
+        int k = 0;
+        for (int num : nums) {
+            if (num != val) {
+                temp[k++] = num;
+            }
+        }
+        for (int i = 0; i < k; i++) {
+            nums[i] = temp[i];
+        }
+        return k;
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(n)`。
+
+#### 资深解法：原地快慢指针
+
+算法思想：`fast` 扫描所有元素，遇到不等于 `val` 的元素就写到 `slow` 位置，最后 `slow` 就是保留元素数量。
+
+```java
+class Solution {
+    public int removeElement(int[] nums, int val) {
+        int slow = 0;
+        for (int fast = 0; fast < nums.length; fast++) {
+            if (nums[fast] != val) {
+                nums[slow] = nums[fast];
+                slow++;
+            }
+        }
+        return slow;
+    }
+}
+```
+
+复杂度：时间 `O(n)`，空间 `O(1)`。
+
+#### 基础语法与算法思想
+
+- 增强 `for (int num : nums)` 适合只读遍历数组。
+- 原地覆盖时，后面未使用的元素无需清理。
+- 核心思想：保留类数组题的答案通常是“新长度 + 前缀有效”。
+
 ---
 
 ## 28. 找出字符串中第一个匹配项的下标 (Easy)
@@ -1172,6 +3084,78 @@ for (int i = 0; i < actualLength; i++) {
 
  `1 <= haystack.length, needle.length <= 104` 
  `haystack`  和  `needle`  仅由小写英文字符组成
+
+### Java 解法补充
+
+#### 基础解法：枚举起点逐字符匹配
+
+算法思想：枚举 `haystack` 中每个可能起点，逐个字符与 `needle` 比较，全部相等就返回起点。
+
+```java
+class Solution {
+    public int strStr(String haystack, String needle) {
+        int n = haystack.length();
+        int m = needle.length();
+        for (int i = 0; i + m <= n; i++) {
+            int j = 0;
+            while (j < m && haystack.charAt(i + j) == needle.charAt(j)) {
+                j++;
+            }
+            if (j == m) return i;
+        }
+        return -1;
+    }
+}
+```
+
+复杂度：时间 `O(nm)`，空间 `O(1)`。
+
+#### 资深解法：KMP
+
+算法思想：预处理 `needle` 的最长相等前后缀数组 `lps`。匹配失败时不用回退主串下标，只把模式串下标跳到可复用前缀位置。
+
+```java
+class Solution {
+    public int strStr(String haystack, String needle) {
+        int[] lps = buildLps(needle);
+        int j = 0;
+        for (int i = 0; i < haystack.length(); i++) {
+            while (j > 0 && haystack.charAt(i) != needle.charAt(j)) {
+                j = lps[j - 1];
+            }
+            if (haystack.charAt(i) == needle.charAt(j)) {
+                j++;
+            }
+            if (j == needle.length()) {
+                return i - needle.length() + 1;
+            }
+        }
+        return -1;
+    }
+
+    private int[] buildLps(String p) {
+        int[] lps = new int[p.length()];
+        int j = 0;
+        for (int i = 1; i < p.length(); i++) {
+            while (j > 0 && p.charAt(i) != p.charAt(j)) {
+                j = lps[j - 1];
+            }
+            if (p.charAt(i) == p.charAt(j)) {
+                lps[i] = ++j;
+            }
+        }
+        return lps;
+    }
+}
+```
+
+复杂度：时间 `O(n + m)`，空间 `O(m)`。
+
+#### 基础语法与算法思想
+
+- `while` 中先判断边界，再访问字符。
+- `lps[i]` 表示模式串 `0..i` 的最长相等真前后缀长度。
+- 核心思想：KMP 用模式串自身结构减少重复比较。
 
 ---
 
@@ -1203,6 +3187,73 @@ for (int i = 0; i < actualLength; i++) {
 
  `-231 <= dividend, divisor <= 231 - 1` 
  `divisor != 0`
+
+### Java 解法补充
+
+#### 基础解法：循环减法
+
+算法思想：把被除数和除数转为正的 `long`，不断减去除数并计数。这个方法直观但大数据会超时，只适合理解除法含义。
+
+```java
+class Solution {
+    public int divide(int dividend, int divisor) {
+        if (dividend == Integer.MIN_VALUE && divisor == -1) {
+            return Integer.MAX_VALUE;
+        }
+        boolean negative = (dividend < 0) ^ (divisor < 0);
+        long a = Math.abs((long) dividend);
+        long b = Math.abs((long) divisor);
+        long ans = 0;
+        while (a >= b) {
+            a -= b;
+            ans++;
+        }
+        return negative ? (int) -ans : (int) ans;
+    }
+}
+```
+
+复杂度：时间 `O(|quotient|)`，空间 `O(1)`。
+
+#### 资深解法：倍增减法
+
+算法思想：每次把除数不断翻倍，找到不超过当前被除数的最大倍数，一次减掉大块，并把对应倍数累加到答案。
+
+```java
+class Solution {
+    public int divide(int dividend, int divisor) {
+        if (dividend == Integer.MIN_VALUE && divisor == -1) {
+            return Integer.MAX_VALUE;
+        }
+        boolean negative = (dividend < 0) ^ (divisor < 0);
+        long a = Math.abs((long) dividend);
+        long b = Math.abs((long) divisor);
+        long ans = 0;
+
+        while (a >= b) {
+            long value = b;
+            long count = 1;
+            while ((value << 1) <= a) {
+                value <<= 1;
+                count <<= 1;
+            }
+            a -= value;
+            ans += count;
+        }
+
+        return negative ? (int) -ans : (int) ans;
+    }
+}
+```
+
+复杂度：时间 `O(log^2 |dividend|)`，空间 `O(1)`。
+
+#### 基础语法与算法思想
+
+- `^`：布尔异或，判断结果符号是否为负。
+- `(long) dividend`：先转 `long` 再取绝对值，避免 `Integer.MIN_VALUE` 溢出。
+- `<<= 1`：左移一位，相当于乘 2。
+- 核心思想：不能用乘除时，用位移倍增模拟快速除法。
 
 ---
 
@@ -1255,5 +3306,105 @@ s 中没有子串长度为 16 并且等于 words 的任何顺序排列的连接�
  `1 <= words[i].length <= 30` 
  `words[i]`  和  `s`  由小写英文字母组成
 
----
+### Java 解法补充
 
+#### 基础解法：枚举起点并统计单词
+
+算法思想：每个答案子串长度固定为 `words.length * wordLen`。枚举起点，把子串按单词长度切块，统计是否与 `words` 的频次一致。
+
+```java
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+class Solution {
+    public List<Integer> findSubstring(String s, String[] words) {
+        List<Integer> ans = new ArrayList<>();
+        Map<String, Integer> need = new HashMap<>();
+        for (String word : words) {
+            need.put(word, need.getOrDefault(word, 0) + 1);
+        }
+
+        int wordLen = words[0].length();
+        int totalLen = wordLen * words.length;
+        for (int i = 0; i + totalLen <= s.length(); i++) {
+            Map<String, Integer> seen = new HashMap<>();
+            int count = 0;
+            while (count < words.length) {
+                String word = s.substring(i + count * wordLen, i + (count + 1) * wordLen);
+                if (!need.containsKey(word)) break;
+                seen.put(word, seen.getOrDefault(word, 0) + 1);
+                if (seen.get(word) > need.get(word)) break;
+                count++;
+            }
+            if (count == words.length) ans.add(i);
+        }
+        return ans;
+    }
+}
+```
+
+复杂度：时间 `O(n * words.length * wordLen)`，空间 `O(words.length)`。
+
+#### 资深解法：按单词长度分组滑动窗口
+
+算法思想：按起点模 `wordLen` 分组扫描，窗口每次移动一个单词长度。窗口内某个单词频次超标时，从左侧弹出单词直到合法。
+
+```java
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+class Solution {
+    public List<Integer> findSubstring(String s, String[] words) {
+        List<Integer> ans = new ArrayList<>();
+        Map<String, Integer> need = new HashMap<>();
+        for (String word : words) {
+            need.put(word, need.getOrDefault(word, 0) + 1);
+        }
+
+        int wordLen = words[0].length();
+        int wordCount = words.length;
+        for (int offset = 0; offset < wordLen; offset++) {
+            Map<String, Integer> window = new HashMap<>();
+            int left = offset;
+            int count = 0;
+
+            for (int right = offset; right + wordLen <= s.length(); right += wordLen) {
+                String word = s.substring(right, right + wordLen);
+                if (!need.containsKey(word)) {
+                    window.clear();
+                    count = 0;
+                    left = right + wordLen;
+                    continue;
+                }
+
+                window.put(word, window.getOrDefault(word, 0) + 1);
+                count++;
+                while (window.get(word) > need.get(word)) {
+                    String removed = s.substring(left, left + wordLen);
+                    window.put(removed, window.get(removed) - 1);
+                    left += wordLen;
+                    count--;
+                }
+                if (count == wordCount) {
+                    ans.add(left);
+                }
+            }
+        }
+        return ans;
+    }
+}
+```
+
+复杂度：时间 `O(n * wordLen)` 级别，空间 `O(words.length)`。
+
+#### 基础语法与算法思想
+
+- `getOrDefault`：频次统计的常用 API。
+- `substring(l, r)`：切出固定长度单词。
+- 核心思想：固定词长后，字符串窗口可以按“单词”为单位滑动。
+
+---

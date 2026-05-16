@@ -30,7 +30,7 @@
  `0 <= prices[i] <= 104`
 
 ---
-
+ 
 ## 122. 买卖股票的最佳时机 II (Medium)
 
 给你一个整数数组  `prices`  ，其中  `prices[i]`  表示某支股票第  `i`  天的价格。
@@ -1169,3 +1169,766 @@ lRUCache.get(4);    // 返回 4
 
 ---
 
+# Java 解法补充附录（121-150）
+
+### 121. 买卖股票的最佳时机
+
+基础解法：枚举买入日和卖出日计算最大利润。
+资深解法：一次扫描维护历史最低价和当前最大利润。
+
+```java
+class Solution {
+    public int maxProfit(int[] prices) {
+        int minPrice = Integer.MAX_VALUE, ans = 0;
+        for (int p : prices) {
+            minPrice = Math.min(minPrice, p);
+            ans = Math.max(ans, p - minPrice);
+        }
+        return ans;
+    }
+}
+```
+
+基础语法与思想：`minPrice` 是到当前日之前的最佳买入价；只允许一次交易。
+
+### 122. 买卖股票的最佳时机 II
+
+基础解法：DP 记录每天持股/不持股的最大收益。
+资深解法：所有上涨段利润都可累加。
+
+```java
+class Solution {
+    public int maxProfit(int[] prices) {
+        int ans = 0;
+        for (int i = 1; i < prices.length; i++) {
+            if (prices[i] > prices[i - 1]) ans += prices[i] - prices[i - 1];
+        }
+        return ans;
+    }
+}
+```
+
+基础语法与思想：可多次交易且不能同时持多股时，贪心吃掉每段上涨。
+
+### 123. 买卖股票的最佳时机 III
+
+基础解法：二维 DP，交易次数为 0、1、2，记录持股/不持股状态。
+资深解法：四个变量表示两次买入卖出的最优状态。
+
+```java
+class Solution {
+    public int maxProfit(int[] prices) {
+        int buy1 = Integer.MIN_VALUE, sell1 = 0, buy2 = Integer.MIN_VALUE, sell2 = 0;
+        for (int p : prices) {
+            buy1 = Math.max(buy1, -p);
+            sell1 = Math.max(sell1, buy1 + p);
+            buy2 = Math.max(buy2, sell1 - p);
+            sell2 = Math.max(sell2, buy2 + p);
+        }
+        return sell2;
+    }
+}
+```
+
+基础语法与思想：状态机 DP 可压缩成变量；买入是减价格，卖出是加价格。
+
+### 124. 二叉树中的最大路径和
+
+基础解法：枚举每个节点作为路径最高点，计算左右最大贡献。
+资深解法：后序递归返回单边最大贡献，全局更新左右加根的路径和。
+
+```java
+class Solution {
+    private int ans = Integer.MIN_VALUE;
+    public int maxPathSum(TreeNode root) {
+        gain(root);
+        return ans;
+    }
+    private int gain(TreeNode node) {
+        if (node == null) return 0;
+        int left = Math.max(0, gain(node.left));
+        int right = Math.max(0, gain(node.right));
+        ans = Math.max(ans, node.val + left + right);
+        return node.val + Math.max(left, right);
+    }
+}
+```
+
+基础语法与思想：返回给父节点的路径只能选择一边；全局答案可同时使用左右两边。
+
+### 125. 验证回文串
+
+基础解法：过滤出字母数字并转小写后双指针比较。
+资深解法：原字符串上双指针跳过非字母数字。
+
+```java
+class Solution {
+    public boolean isPalindrome(String s) {
+        int l = 0, r = s.length() - 1;
+        while (l < r) {
+            while (l < r && !Character.isLetterOrDigit(s.charAt(l))) l++;
+            while (l < r && !Character.isLetterOrDigit(s.charAt(r))) r--;
+            if (Character.toLowerCase(s.charAt(l++)) != Character.toLowerCase(s.charAt(r--))) return false;
+        }
+        return true;
+    }
+}
+```
+
+基础语法与思想：`Character.isLetterOrDigit` 判断字母数字；回文比较可原地跳过无关字符。
+
+### 126. 单词接龙 II
+
+基础解法：DFS 枚举所有转换路径并取最短，容易超时。
+资深解法：BFS 建最短层级和前驱关系，再从终点回溯所有最短路径。
+
+```java
+class Solution {
+    public java.util.List<java.util.List<String>> findLadders(String beginWord, String endWord, java.util.List<String> wordList) {
+        java.util.Set<String> dict = new java.util.HashSet<>(wordList);
+        java.util.List<java.util.List<String>> ans = new java.util.ArrayList<>();
+        if (!dict.contains(endWord)) return ans;
+        java.util.Map<String, java.util.List<String>> prev = new java.util.HashMap<>();
+        java.util.Set<String> level = new java.util.HashSet<>();
+        level.add(beginWord);
+        dict.remove(beginWord);
+        boolean found = false;
+        while (!level.isEmpty() && !found) {
+            java.util.Set<String> nextLevel = new java.util.HashSet<>();
+            for (String w : level) dict.remove(w);
+            for (String word : level) {
+                char[] arr = word.toCharArray();
+                for (int i = 0; i < arr.length; i++) {
+                    char old = arr[i];
+                    for (char c = 'a'; c <= 'z'; c++) {
+                        arr[i] = c;
+                        String next = new String(arr);
+                        if (!dict.contains(next)) continue;
+                        if (next.equals(endWord)) found = true;
+                        nextLevel.add(next);
+                        prev.computeIfAbsent(next, k -> new java.util.ArrayList<>()).add(word);
+                    }
+                    arr[i] = old;
+                }
+            }
+            level = nextLevel;
+        }
+        backtrack(endWord, beginWord, prev, new java.util.ArrayList<>(), ans);
+        return ans;
+    }
+    private void backtrack(String word, String begin, java.util.Map<String, java.util.List<String>> prev, java.util.List<String> path, java.util.List<java.util.List<String>> ans) {
+        path.add(word);
+        if (word.equals(begin)) {
+            java.util.List<String> one = new java.util.ArrayList<>(path);
+            java.util.Collections.reverse(one);
+            ans.add(one);
+        } else if (prev.containsKey(word)) for (String p : prev.get(word)) backtrack(p, begin, prev, path, ans);
+        path.remove(path.size() - 1);
+    }
+}
+```
+
+基础语法与思想：BFS 保证最短层；前驱表用于回溯所有答案。
+
+### 127. 单词接龙
+
+基础解法：BFS 每次枚举字典中只差一个字符的单词。
+资深解法：对当前单词逐位替换 26 个字母生成邻居。
+
+```java
+class Solution {
+    public int ladderLength(String beginWord, String endWord, java.util.List<String> wordList) {
+        java.util.Set<String> dict = new java.util.HashSet<>(wordList);
+        if (!dict.contains(endWord)) return 0;
+        java.util.Queue<String> q = new java.util.ArrayDeque<>();
+        q.offer(beginWord);
+        dict.remove(beginWord);
+        int step = 1;
+        while (!q.isEmpty()) {
+            for (int s = q.size(); s > 0; s--) {
+                char[] arr = q.poll().toCharArray();
+                String cur = new String(arr);
+                if (cur.equals(endWord)) return step;
+                for (int i = 0; i < arr.length; i++) {
+                    char old = arr[i];
+                    for (char c = 'a'; c <= 'z'; c++) {
+                        arr[i] = c;
+                        String next = new String(arr);
+                        if (dict.remove(next)) q.offer(next);
+                    }
+                    arr[i] = old;
+                }
+            }
+            step++;
+        }
+        return 0;
+    }
+}
+```
+
+基础语法与思想：`dict.remove(next)` 同时判断存在并标记已访问。
+
+### 128. 最长连续序列
+
+基础解法：排序后统计连续段。
+资深解法：哈希集合只从序列起点 `x-1` 不存在的位置向后扩展。
+
+```java
+class Solution {
+    public int longestConsecutive(int[] nums) {
+        java.util.Set<Integer> set = new java.util.HashSet<>();
+        for (int x : nums) set.add(x);
+        int ans = 0;
+        for (int x : set) {
+            if (!set.contains(x - 1)) {
+                int y = x;
+                while (set.contains(y)) y++;
+                ans = Math.max(ans, y - x);
+            }
+        }
+        return ans;
+    }
+}
+```
+
+基础语法与思想：只从连续段起点扩展，保证总体 `O(n)`。
+
+### 129. 求根节点到叶节点数字之和
+
+基础解法：DFS 保存路径字符串，到叶子后转整数。
+资深解法：递归传当前数字 `cur = cur * 10 + val`。
+
+```java
+class Solution {
+    public int sumNumbers(TreeNode root) {
+        return dfs(root, 0);
+    }
+    private int dfs(TreeNode node, int cur) {
+        if (node == null) return 0;
+        cur = cur * 10 + node.val;
+        if (node.left == null && node.right == null) return cur;
+        return dfs(node.left, cur) + dfs(node.right, cur);
+    }
+}
+```
+
+基础语法与思想：根到叶路径题在叶子节点结算。
+
+### 130. 被围绕的区域
+
+基础解法：对每个 `O` DFS 判断是否连到边界。
+资深解法：从边界 `O` 出发标记安全区域，剩余 `O` 翻成 `X`。
+
+```java
+class Solution {
+    public void solve(char[][] board) {
+        int m = board.length, n = board[0].length;
+        for (int r = 0; r < m; r++) { mark(board, r, 0); mark(board, r, n - 1); }
+        for (int c = 0; c < n; c++) { mark(board, 0, c); mark(board, m - 1, c); }
+        for (int r = 0; r < m; r++) for (int c = 0; c < n; c++) {
+            if (board[r][c] == 'O') board[r][c] = 'X';
+            else if (board[r][c] == '#') board[r][c] = 'O';
+        }
+    }
+    private void mark(char[][] b, int r, int c) {
+        if (r < 0 || r == b.length || c < 0 || c == b[0].length || b[r][c] != 'O') return;
+        b[r][c] = '#';
+        mark(b, r + 1, c); mark(b, r - 1, c); mark(b, r, c + 1); mark(b, r, c - 1);
+    }
+}
+```
+
+基础语法与思想：反向思考，边界连通的 `O` 不会被包围。
+
+### 131. 分割回文串
+
+基础解法：回溯枚举切分，每段实时判断回文。
+资深解法：预处理回文 DP 后回溯切分。
+
+```java
+class Solution {
+    public java.util.List<java.util.List<String>> partition(String s) {
+        java.util.List<java.util.List<String>> ans = new java.util.ArrayList<>();
+        dfs(s, 0, new java.util.ArrayList<>(), ans);
+        return ans;
+    }
+    private void dfs(String s, int start, java.util.List<String> path, java.util.List<java.util.List<String>> ans) {
+        if (start == s.length()) { ans.add(new java.util.ArrayList<>(path)); return; }
+        for (int end = start; end < s.length(); end++) {
+            if (!pal(s, start, end)) continue;
+            path.add(s.substring(start, end + 1));
+            dfs(s, end + 1, path, ans);
+            path.remove(path.size() - 1);
+        }
+    }
+    private boolean pal(String s, int l, int r) {
+        while (l < r) if (s.charAt(l++) != s.charAt(r--)) return false;
+        return true;
+    }
+}
+```
+
+基础语法与思想：切分题回溯参数通常是下一个起点。
+
+### 132. 分割回文串 II
+
+基础解法：枚举所有回文切分取最少段数。
+资深解法：预处理回文，`dp[i]` 表示前 `i` 个字符最少切割数。
+
+```java
+class Solution {
+    public int minCut(String s) {
+        int n = s.length();
+        boolean[][] pal = new boolean[n][n];
+        for (int i = n - 1; i >= 0; i--) for (int j = i; j < n; j++)
+            pal[i][j] = s.charAt(i) == s.charAt(j) && (j - i < 2 || pal[i + 1][j - 1]);
+        int[] dp = new int[n + 1];
+        java.util.Arrays.fill(dp, n);
+        dp[0] = -1;
+        for (int i = 1; i <= n; i++) for (int j = 0; j < i; j++)
+            if (pal[j][i - 1]) dp[i] = Math.min(dp[i], dp[j] + 1);
+        return dp[n];
+    }
+}
+```
+
+基础语法与思想：`dp[0] = -1` 让整个前缀回文时切割数为 0。
+
+### 133. 克隆图
+
+基础解法：DFS 递归克隆节点和邻居。
+资深解法：哈希表记录原节点到克隆节点映射，避免重复克隆和死循环。
+
+```java
+class Solution {
+    private java.util.Map<Node, Node> map = new java.util.HashMap<>();
+    public Node cloneGraph(Node node) {
+        if (node == null) return null;
+        if (map.containsKey(node)) return map.get(node);
+        Node copy = new Node(node.val, new java.util.ArrayList<>());
+        map.put(node, copy);
+        for (Node nei : node.neighbors) copy.neighbors.add(cloneGraph(nei));
+        return copy;
+    }
+}
+```
+
+基础语法与思想：图可能有环，克隆时必须先放入映射再递归邻居。
+
+### 134. 加油站
+
+基础解法：枚举每个起点模拟一圈。
+资深解法：若从 `start` 到 `i` 油量为负，则这些点都不能作为起点，从 `i+1` 重来。
+
+```java
+class Solution {
+    public int canCompleteCircuit(int[] gas, int[] cost) {
+        int total = 0, tank = 0, start = 0;
+        for (int i = 0; i < gas.length; i++) {
+            int diff = gas[i] - cost[i];
+            total += diff;
+            tank += diff;
+            if (tank < 0) { start = i + 1; tank = 0; }
+        }
+        return total >= 0 ? start : -1;
+    }
+}
+```
+
+基础语法与思想：总油量不足必无解；局部失败区间内的点都不可能成功。
+
+### 135. 分发糖果
+
+基础解法：反复调整不满足条件的孩子糖果数直到稳定。
+资深解法：左右两次扫描，分别满足左邻和右邻约束。
+
+```java
+class Solution {
+    public int candy(int[] ratings) {
+        int n = ratings.length;
+        int[] candies = new int[n];
+        java.util.Arrays.fill(candies, 1);
+        for (int i = 1; i < n; i++) if (ratings[i] > ratings[i - 1]) candies[i] = candies[i - 1] + 1;
+        for (int i = n - 2; i >= 0; i--) if (ratings[i] > ratings[i + 1]) candies[i] = Math.max(candies[i], candies[i + 1] + 1);
+        int sum = 0;
+        for (int c : candies) sum += c;
+        return sum;
+    }
+}
+```
+
+基础语法与思想：两个方向的局部约束分开满足，再取较大值。
+
+### 136. 只出现一次的数字
+
+基础解法：哈希表统计频次。
+资深解法：异或所有数字，成对数字抵消为 0。
+
+```java
+class Solution {
+    public int singleNumber(int[] nums) {
+        int ans = 0;
+        for (int x : nums) ans ^= x;
+        return ans;
+    }
+}
+```
+
+基础语法与思想：`a ^ a = 0`，`a ^ 0 = a`。
+
+### 137. 只出现一次的数字 II
+
+基础解法：哈希表统计频次后找 1 次。
+资深解法：逐位统计 1 的个数，对 3 取余得到答案位。
+
+```java
+class Solution {
+    public int singleNumber(int[] nums) {
+        int ans = 0;
+        for (int bit = 0; bit < 32; bit++) {
+            int count = 0;
+            for (int x : nums) count += (x >> bit) & 1;
+            if (count % 3 != 0) ans |= 1 << bit;
+        }
+        return ans;
+    }
+}
+```
+
+基础语法与思想：位统计天然支持负数的补码表示。
+
+### 138. 随机链表的复制
+
+基础解法：哈希表记录原节点到新节点映射。
+资深解法：原链表中穿插克隆节点，再设置 random，最后拆分。
+
+```java
+class Solution {
+    public Node copyRandomList(Node head) {
+        if (head == null) return null;
+        java.util.Map<Node, Node> map = new java.util.HashMap<>();
+        for (Node cur = head; cur != null; cur = cur.next) map.put(cur, new Node(cur.val));
+        for (Node cur = head; cur != null; cur = cur.next) {
+            map.get(cur).next = map.get(cur.next);
+            map.get(cur).random = map.get(cur.random);
+        }
+        return map.get(head);
+    }
+}
+```
+
+基础语法与思想：`HashMap` 可以用对象引用作为键；`map.get(null)` 返回 `null`。
+
+### 139. 单词拆分
+
+基础解法：DFS 枚举切分点并记忆化。
+资深解法：DP，`dp[i]` 表示前 `i` 个字符能否被字典切分。
+
+```java
+class Solution {
+    public boolean wordBreak(String s, java.util.List<String> wordDict) {
+        java.util.Set<String> set = new java.util.HashSet<>(wordDict);
+        boolean[] dp = new boolean[s.length() + 1];
+        dp[0] = true;
+        for (int i = 1; i <= s.length(); i++) {
+            for (int j = 0; j < i; j++) {
+                if (dp[j] && set.contains(s.substring(j, i))) { dp[i] = true; break; }
+            }
+        }
+        return dp[s.length()];
+    }
+}
+```
+
+基础语法与思想：字符串切分 DP 常用前缀可达状态。
+
+### 140. 单词拆分 II
+
+基础解法：DFS 枚举所有切分句子。
+资深解法：记忆化 `start -> 句子列表`，避免重复求后缀答案。
+
+```java
+class Solution {
+    private java.util.Set<String> dict;
+    private java.util.Map<Integer, java.util.List<String>> memo = new java.util.HashMap<>();
+    public java.util.List<String> wordBreak(String s, java.util.List<String> wordDict) {
+        dict = new java.util.HashSet<>(wordDict);
+        return dfs(s, 0);
+    }
+    private java.util.List<String> dfs(String s, int start) {
+        if (memo.containsKey(start)) return memo.get(start);
+        java.util.List<String> ans = new java.util.ArrayList<>();
+        if (start == s.length()) ans.add("");
+        for (int end = start + 1; end <= s.length(); end++) {
+            String word = s.substring(start, end);
+            if (!dict.contains(word)) continue;
+            for (String tail : dfs(s, end)) ans.add(tail.isEmpty() ? word : word + " " + tail);
+        }
+        memo.put(start, ans);
+        return ans;
+    }
+}
+```
+
+基础语法与思想：返回空串作为拼接终点，可统一处理最后一个单词。
+
+### 141. 环形链表
+
+基础解法：集合记录访问过的节点。
+资深解法：快慢指针，相遇则有环。
+
+```java
+public class Solution {
+    public boolean hasCycle(ListNode head) {
+        ListNode slow = head, fast = head;
+        while (fast != null && fast.next != null) {
+            slow = slow.next;
+            fast = fast.next.next;
+            if (slow == fast) return true;
+        }
+        return false;
+    }
+}
+```
+
+基础语法与思想：快指针每次走两步，若有环必追上慢指针。
+
+### 142. 环形链表 II
+
+基础解法：集合保存访问节点，第一次重复就是入环点。
+资深解法：快慢指针相遇后，一个指针回到头节点，两者同步走，相遇处为入环点。
+
+```java
+public class Solution {
+    public ListNode detectCycle(ListNode head) {
+        ListNode slow = head, fast = head;
+        while (fast != null && fast.next != null) {
+            slow = slow.next;
+            fast = fast.next.next;
+            if (slow == fast) {
+                ListNode p = head;
+                while (p != slow) { p = p.next; slow = slow.next; }
+                return p;
+            }
+        }
+        return null;
+    }
+}
+```
+
+基础语法与思想：Floyd 判圈还能通过距离关系定位入口。
+
+### 143. 重排链表
+
+基础解法：把节点放入数组，双指针按首尾顺序重连。
+资深解法：找中点、反转后半段、交替合并。
+
+```java
+class Solution {
+    public void reorderList(ListNode head) {
+        if (head == null || head.next == null) return;
+        ListNode slow = head, fast = head;
+        while (fast.next != null && fast.next.next != null) { slow = slow.next; fast = fast.next.next; }
+        ListNode second = reverse(slow.next);
+        slow.next = null;
+        ListNode first = head;
+        while (second != null) {
+            ListNode a = first.next, b = second.next;
+            first.next = second; second.next = a;
+            first = a; second = b;
+        }
+    }
+    private ListNode reverse(ListNode head) {
+        ListNode prev = null;
+        while (head != null) { ListNode next = head.next; head.next = prev; prev = head; head = next; }
+        return prev;
+    }
+}
+```
+
+基础语法与思想：链表重排通常拆成“找中点 + 反转 + 合并”。
+
+### 144. 二叉树的前序遍历
+
+基础解法：递归根、左、右。
+资深解法：栈迭代，先压右再压左。
+
+```java
+class Solution {
+    public java.util.List<Integer> preorderTraversal(TreeNode root) {
+        java.util.List<Integer> ans = new java.util.ArrayList<>();
+        if (root == null) return ans;
+        java.util.Deque<TreeNode> stack = new java.util.ArrayDeque<>();
+        stack.push(root);
+        while (!stack.isEmpty()) {
+            TreeNode node = stack.pop();
+            ans.add(node.val);
+            if (node.right != null) stack.push(node.right);
+            if (node.left != null) stack.push(node.left);
+        }
+        return ans;
+    }
+}
+```
+
+基础语法与思想：栈后进先出，先压右才能先处理左。
+
+### 145. 二叉树的后序遍历
+
+基础解法：递归左、右、根。
+资深解法：栈按根、右、左收集，再反转得到左、右、根。
+
+```java
+class Solution {
+    public java.util.List<Integer> postorderTraversal(TreeNode root) {
+        java.util.LinkedList<Integer> ans = new java.util.LinkedList<>();
+        if (root == null) return ans;
+        java.util.Deque<TreeNode> stack = new java.util.ArrayDeque<>();
+        stack.push(root);
+        while (!stack.isEmpty()) {
+            TreeNode node = stack.pop();
+            ans.addFirst(node.val);
+            if (node.left != null) stack.push(node.left);
+            if (node.right != null) stack.push(node.right);
+        }
+        return ans;
+    }
+}
+```
+
+基础语法与思想：`addFirst` 可把根右左反向变成左右根。
+
+### 146. LRU 缓存
+
+基础解法：用列表维护最近使用顺序，查找和移动为 `O(n)`。
+资深解法：`LinkedHashMap` 开启访问顺序并重写删除 eldest。
+
+```java
+class LRUCache extends java.util.LinkedHashMap<Integer, Integer> {
+    private final int capacity;
+    public LRUCache(int capacity) {
+        super(capacity, 0.75f, true);
+        this.capacity = capacity;
+    }
+    public int get(int key) {
+        return super.getOrDefault(key, -1);
+    }
+    public void put(int key, int value) {
+        super.put(key, value);
+    }
+    protected boolean removeEldestEntry(java.util.Map.Entry<Integer, Integer> eldest) {
+        return size() > capacity;
+    }
+}
+```
+
+基础语法与思想：`LinkedHashMap` 的 access-order 正好表达最近使用顺序。
+
+### 147. 对链表进行插入排序
+
+基础解法：把值放入数组排序后写回。
+资深解法：维护已排序链表，逐个把原节点插入正确位置。
+
+```java
+class Solution {
+    public ListNode insertionSortList(ListNode head) {
+        ListNode dummy = new ListNode(Integer.MIN_VALUE);
+        while (head != null) {
+            ListNode next = head.next;
+            ListNode p = dummy;
+            while (p.next != null && p.next.val < head.val) p = p.next;
+            head.next = p.next;
+            p.next = head;
+            head = next;
+        }
+        return dummy.next;
+    }
+}
+```
+
+基础语法与思想：插入排序链表时要先保存 `next`，避免丢失未处理部分。
+
+### 148. 排序链表
+
+基础解法：把值放入数组排序后写回链表。
+资深解法：归并排序链表，快慢指针切分，中间断开。
+
+```java
+class Solution {
+    public ListNode sortList(ListNode head) {
+        if (head == null || head.next == null) return head;
+        ListNode slow = head, fast = head.next;
+        while (fast != null && fast.next != null) { slow = slow.next; fast = fast.next.next; }
+        ListNode mid = slow.next;
+        slow.next = null;
+        return merge(sortList(head), sortList(mid));
+    }
+    private ListNode merge(ListNode a, ListNode b) {
+        ListNode dummy = new ListNode(0), tail = dummy;
+        while (a != null && b != null) {
+            if (a.val <= b.val) { tail.next = a; a = a.next; } else { tail.next = b; b = b.next; }
+            tail = tail.next;
+        }
+        tail.next = a == null ? b : a;
+        return dummy.next;
+    }
+}
+```
+
+基础语法与思想：链表排序适合归并，因为合并链表是 `O(1)` 额外空间连接。
+
+### 149. 直线上最多的点数
+
+基础解法：枚举两点确定直线，再统计所有点是否在线上。
+资深解法：固定一个点，用归一化斜率哈希统计相同方向的点数。
+
+```java
+class Solution {
+    public int maxPoints(int[][] points) {
+        int n = points.length, ans = 1;
+        for (int i = 0; i < n; i++) {
+            java.util.Map<String, Integer> map = new java.util.HashMap<>();
+            for (int j = i + 1; j < n; j++) {
+                int dx = points[j][0] - points[i][0], dy = points[j][1] - points[i][1];
+                int g = gcd(Math.abs(dx), Math.abs(dy));
+                dx /= g; dy /= g;
+                if (dx == 0) dy = 1;
+                else if (dy == 0) dx = 1;
+                else if (dx < 0) { dx = -dx; dy = -dy; }
+                String key = dx + "/" + dy;
+                map.put(key, map.getOrDefault(key, 1) + 1);
+                ans = Math.max(ans, map.get(key));
+            }
+        }
+        return ans;
+    }
+    private int gcd(int a, int b) { return b == 0 ? a : gcd(b, a % b); }
+}
+```
+
+基础语法与思想：斜率用约分后的 `(dx,dy)` 表示，避免浮点误差。
+
+### 150. 逆波兰表达式求值
+
+基础解法：递归解析后缀表达式。
+资深解法：栈，遇到数字入栈，遇到运算符弹出两个数计算。
+
+```java
+class Solution {
+    public int evalRPN(String[] tokens) {
+        java.util.Deque<Integer> stack = new java.util.ArrayDeque<>();
+        for (String t : tokens) {
+            if ("+-*/".contains(t) && t.length() == 1) {
+                int b = stack.pop(), a = stack.pop();
+                if (t.equals("+")) stack.push(a + b);
+                else if (t.equals("-")) stack.push(a - b);
+                else if (t.equals("*")) stack.push(a * b);
+                else stack.push(a / b);
+            } else stack.push(Integer.parseInt(t));
+        }
+        return stack.pop();
+    }
+}
+```
+
+基础语法与思想：注意弹栈顺序，先弹出的是右操作数。
